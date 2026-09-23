@@ -864,6 +864,9 @@ export default class NoteTtsPlugin extends Plugin {
         .replace(/^\s*tags:\s*.*$/gim, "");
     }
 
+    // 移除 Markdown 分割线 (如 ---, ***, ___)
+    normalized = normalized.replace(/^ *[-*_]{3,} *$/gm, "");
+
     normalized = this.removeSkippedLines(normalized);
 
     let cleaned = normalized;
@@ -874,6 +877,7 @@ export default class NoteTtsPlugin extends Plugin {
         .replace(/^#{1,6}\s+/gm, "")
         .replace(/^\s*[-*+]\s+/gm, "")
         .replace(/^\s*\d+\.\s+/gm, "")
+        .replace(/^\s*>+\s*/gm, "")
         .replace(/\*\*([^*]+)\*\*/g, "$1")
         .replace(/\*([^*]+)\*/g, "$1")
         .replace(/__([^_]+)__/g, "$1")
@@ -966,14 +970,15 @@ export default class NoteTtsPlugin extends Plugin {
   }
 
   private async generateWithVolcengineChunks(text: string, chunkCharacters: number, status?: TtsStatusModal): Promise<AudioResult> {
-    const chunks = splitTextForTts(text, Math.max(80, chunkCharacters));
+    const rawChunks = splitTextForTts(text, Math.max(80, Math.min(chunkCharacters, 800)));
+    const chunks = rawChunks.filter((c) => /[\p{L}\p{N}]/u.test(c));
     if (chunks.length <= 1) {
-      return this.requestVolcengineAudio(text);
+      return this.requestVolcengineAudio(chunks[0] || text);
     }
 
     const audios: AudioResult[] = [];
     for (let index = 0; index < chunks.length; index++) {
-      status?.setStatus(`火山引擎正在生成分段 ${index + 1}/${chunks.length}...`);
+      status?.setStatus(`火山引擎正在生成语音 (${index + 1}/${chunks.length})...`);
       audios.push(await this.requestVolcengineAudio(chunks[index]));
     }
 
@@ -981,6 +986,11 @@ export default class NoteTtsPlugin extends Plugin {
   }
 
   private async requestVolcengineAudio(text: string): Promise<AudioResult> {
+    const trimmed = text.trim();
+    if (!trimmed || !/[\p{L}\p{N}]/u.test(trimmed)) {
+      throw new Error("当前分段没有包含可朗读的文字内容。");
+    }
+
     const voice = this.settings.volcengineVoiceType === "custom"
       ? (this.settings.volcengineCustomVoiceType || "BV001_streaming")
       : (this.settings.volcengineVoiceType || "BV001_streaming");
@@ -1016,7 +1026,7 @@ export default class NoteTtsPlugin extends Plugin {
         },
         request: {
           reqid: createUuid(),
-          text,
+          text: trimmed,
           text_type: "plain",
           operation: "query",
         },
@@ -3009,6 +3019,26 @@ async function requestUrlWithRetries(
 }
 
 function errorMessage(error: unknown) {
+  if (error && typeof error === "object") {
+    const err = error as any;
+    let detail = "";
+    if (err.json && typeof err.json === "object") {
+      detail = err.json.message || err.json.error || JSON.stringify(err.json);
+    } else if (typeof err.text === "string" && err.text.trim()) {
+      try {
+        const parsed = JSON.parse(err.text);
+        detail = parsed.message || parsed.error || err.text;
+      } catch {
+        detail = err.text;
+      }
+    }
+    if (detail) {
+      return `${err.message || "请求失败"}：${detail}`;
+    }
+    if (err.message) {
+      return err.message;
+    }
+  }
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -3097,7 +3127,9 @@ function splitTextForTts(text: string, maxCharacters: number): string[] {
     groupedChunks.push(currentChunk);
   }
 
-  return groupedChunks.filter(Boolean);
+  return groupedChunks
+    .map((c) => c.trim())
+    .filter((c) => Boolean(c) && /[\p{L}\p{N}]/u.test(c));
 }
 
 function hardSplitText(text: string, maxCharacters: number) {
