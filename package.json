@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-note-tts",
-  "version": "0.2.3",
-  "description": "Convert the current Obsidian note or selection into downloadable MP3 audio with user-provided TTS APIs.",
+  "name": "obsidian-note-audio",
+  "version": "1.0.0",
+  "description": "Obsidian 听笔记插件：将笔记转换为本地高品质有声语音（默认支持火山引擎豆包语音），本地保存并与笔记双向关联。",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
@@ -9,12 +9,15 @@
   },
   "keywords": [
     "obsidian",
+    "obsidian-plugin",
     "tts",
     "text-to-speech",
-    "minimax",
-    "replicate"
+    "volcengine",
+    "doubao",
+    "note-audio",
+    "podcast"
   ],
-  "author": "sourit2001",
+  "author": "龙海",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.11.30",

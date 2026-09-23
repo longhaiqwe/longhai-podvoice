@@ -1,83 +1,95 @@
-# Note TTS
+# 听笔记 (Note Audio) - Obsidian 语音听读插件
 
-Note TTS is an Obsidian plugin that turns the current note or selected text into an MP3 audio file through your own TTS API provider. The generated audio is saved inside your vault and opened in a built-in playback modal.
+**听笔记 (Note Audio)** 是一款专为知识创作者与长文阅读者设计的 Obsidian 插件。它能将你的笔记或选中文本转换为高品质的语音，保存在本地仓库中，并与笔记建立强双向关联。
 
-## Features
+默认搭载**墨问（Mowen）同款【火山引擎 / 豆包大模型语音合成 (TTS 2.0)】**，采用“一次生成，本地持久化”的高性价比架构，兼具极佳中文自然度和秒开播放体验，完美兼容**电脑端与手机端**。
 
-- Command palette actions for `Convert current note to speech` and `Convert selected text to speech`
-- Ribbon button for converting the current note
-- Editor context menu actions for converting the whole note or the current selection
-- File menu action for converting a Markdown file, useful on mobile when long-pressing a file
-- `Preview cleaned text for speech` command to inspect the text before it is sent to TTS
-- Markdown cleanup options for frontmatter, tags, links, raw URLs, images/embeds, HTML comments, and custom skipped-line rules
-- MiniMax HTTP T2A support
-- Official Replicate MiniMax Speech 2.8 Turbo preset
-- Advanced Replicate version/template mode for other TTS models
-- Custom HTTP provider support
-- Generated files are saved to `TTS Audio/` by default
-- Playback modal after generation, with actions to open the audio file or copy its path
+---
 
-## Install For Obsidian Testing
+## 🌟 核心特性
 
-Copy these files into your vault plugin folder:
+1. **墨问同款火山引擎豆包语音大模型**：
+   - 字节跳动火山引擎企业级语音模型（与剪映、抖音、番茄小说同一套自研语音体系）。
+   - 预设经典音色：通用知性女声、灿灿（活力爆款）、通用磁性男声、知识讲解专栏男女声等，咬字温和自然、顿挫呼吸感真实，久听不累。
+   - 支持自定义 Voice Type 与语速调节。
 
+2. **本地持久化存储（极致性价比）**：
+   - **非实时流式计费**：一次调用生成完整 MP3 文件，持久化存入仓库目录（默认 `TTS Audio/`）。
+   - 彻底避免每次重听重复消耗 API 费用，支持随意拖拽进度条、离线收听、倍速播放。
+
+3. **笔记 ⇄ 音频双向强关联**：
+   - **笔记 ➔ 音频**：
+     - 生成后自动在当前笔记的 YAML Frontmatter 中写入 `audio: "[[TTS Audio/笔记名-时间戳.mp3]]"` 属性。
+     - 支持可选在笔记正文顶部或底部自动插入原生嵌入语法（`![[...]]`）。
+     - 支持在笔记内一键执行命令**「播放当前笔记关联的语音」**，无需重复合成。
+   - **音频 ➔ 笔记**：
+     - 专属播放弹窗内置“来源笔记”徽标，点击即可一键跳转并打开对应原始笔记。
+     - 即使直接从 `TTS Audio` 目录播放音频，系统也能自动识别并链接到原始笔记。
+
+4. **双端无缝支持（手机端 + 电脑端）**：
+   - 全面兼容 macOS、Windows、iOS、iPadOS 和 Android。
+   - 网络请求统一采用 Obsidian 原生 `requestUrl`（绕过移动浏览器跨域限制）。
+   - 音频文件存储走 Obsidian 原生接口，配合 iCloud 或各类同步方案自动多端同步。
+
+5. **智能 Markdown 文本清洗**：
+   - 自动滤除 Frontmatter 元数据、标签（#tag）、URL 链接、图片、嵌入块及 HTML 注释。
+   - 优化英文缩写连读（如 API、SDK 自动留白分隔），标题与无标点行尾智能补充停顿。
+
+6. **增强播放控制器**：
+   - 0.75x / 1.0x / 1.25x / 1.5x / 1.75x / 2.0x 快捷倍速切换。
+   - ⏩ 快进 15 秒 / ⏪ 快退 15 秒快捷按键。
+   - 一键跳转原笔记、打开音频文件、复制路径、复制嵌入代码。
+
+---
+
+## 🚀 快速上手与配置
+
+### 1. 安装插件
+将本项目的以下文件复制到你的 Obsidian 仓库插件目录下：
 ```text
-<your vault>/.obsidian/plugins/note-tts/
-  manifest.json
-  main.js
-  styles.css
+<你的仓库>/.obsidian/plugins/note-audio/
+  ├── manifest.json
+  ├── main.js
+  └── styles.css
 ```
+在 Obsidian 设置中进入「第三方插件」，关闭安全模式，启用 **听笔记 (Note Audio)**。
 
-Then enable `Note TTS` in Obsidian's community plugins settings.
+### 2. 火山引擎凭证配置（墨问同款）
+1. 前往 [火山引擎控制台](https://console.volcengine.com/speech) 开通**语音技术 - 语音合成 (TTS)** 服务；
+2. 在控制台创建应用，获取你的 **App ID** 与 **Access Token**（或 API Key）；
+3. 打开 Obsidian 设置 ➔ 找到 **听笔记 (Note Audio)**；
+4. Provider 选择 **火山引擎 (豆包大模型语音 - 墨问同款)**：
+   - 填写 **App ID**
+   - 填写 **Access Token / API Key**
+   - Cluster ID 保持默认 `volcano_tts` 即可
+   - 选择你心仪的音色（推荐“通用知性女声”或“灿灿”）
+5. 点击下方 **「▶ 试听测试语音」** 按钮，验证连接与音质。
 
-## MiniMax Setup
+---
 
-Choose `MiniMax` in the plugin settings and fill in:
+## 🎧 使用指南
 
-- `API Key`
-- `Model`: defaults to `speech-2.8-turbo`
-- `Voice ID`: defaults to `Chinese_Mandarin_Gentleman`; you can also use another system voice or a cloned voice ID
-- `Language boost`: use `auto` for automatic detection, or `Chinese` for Chinese text
+* **为整篇笔记生成语音**：
+  - 点击左侧侧边栏的 **听笔记 (耳麦图标)**；
+  - 或在笔记编辑区按 `Cmd/Ctrl + P`，输入 `听笔记：生成当前笔记语音并保存到本地`；
+  - 或在左侧文件列表右键笔记，点击 `听笔记：生成该笔记语音并保存`。
+* **播放已生成的语音**：
+  - 在笔记中按 `Cmd/Ctrl + P`，输入 `听笔记：播放当前笔记关联的语音`；
+  - 或在左侧文件列表右键笔记，点击 `听笔记：播放该笔记关联语音`。
+* **为选中文本生成语音**：
+  - 选中笔记中的部分文字，右键菜单点击 `Convert selected text to speech`。
 
-The plugin calls `https://api.minimax.io/v1/t2a_v2` and expects MiniMax to return MP3 audio data as hex.
+---
 
-## Replicate Setup
+## 🛠️ 高级与扩展 Provider
 
-Choose `Replicate` in the plugin settings and fill in:
+除了火山引擎外，插件同样保留了以下 Provider 支持：
+* **MiniMax**：支持 HTTP T2A 接口与声音克隆；
+* **Replicate**：支持官方 MiniMax 2.8 Turbo 及其他开源模型；
+* **Custom HTTP**：支持任意自建服务器或中转代理接口。
 
-- `API Token`
-- `Model`: defaults to `minimax/speech-2.8-turbo`
-- `Voice`: choose a MiniMax Speech 2.8 Turbo system voice; choose `Custom` to use the next field
-- `Custom voice ID`: used when `Voice` is set to `Custom`, usually for a MiniMax voice-cloning `voice_id`
-- `Language preference`: defaults to `Auto`
-- `Emotion`: defaults to `Auto`
+---
 
-The default model calls Replicate's official model endpoint:
+## 📄 开源许可
 
-```text
-https://api.replicate.com/v1/models/minimax/speech-2.8-turbo/predictions
-```
-
-To use another Replicate model, change `Model` to another `owner/name`, then fill in:
-
-- `Model version`: the Replicate model version hash
-- `Input JSON template`: for example:
-
-```json
-{
-  "text": "{{text}}"
-}
-```
-
-Different Replicate TTS models may require different input fields. You can edit the template to match the model, such as `prompt`, `voice`, or `language`. The plugin polls the prediction, finds the first audio URL in the output, downloads it, and saves it to your vault.
-
-## Custom HTTP Provider
-
-A custom provider can return:
-
-- A direct binary audio response
-- An audio URL in JSON
-- Hex audio data in JSON
-- Base64 audio data in JSON
-
-Use `Audio URL path`, `Audio hex path`, or `Audio base64 path` to specify the JSON path, for example `data.audio_url`.
+本项目基于 MIT 协议开源。

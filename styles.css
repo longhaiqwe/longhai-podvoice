@@ -86,8 +86,94 @@
   width: 1.35em;
 }
 
+.note-tts-source-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  gap: 10px;
+}
+
+.note-tts-source-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui-small);
+}
+
+.note-tts-source-label {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.note-tts-source-link {
+  font-weight: 600;
+  color: var(--text-accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.note-tts-jump-btn {
+  padding: 4px 10px;
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.note-tts-speed-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.note-tts-speed-label {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.note-tts-speed-btn {
+  padding: 3px 8px;
+  font-size: var(--font-ui-smaller);
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  cursor: pointer;
+  color: var(--text-normal);
+}
+
+.note-tts-speed-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.note-tts-speed-btn.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+  font-weight: 600;
+}
+
+.note-tts-seek-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: -2px;
+}
+
+.note-tts-seek-btn {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+
 @keyframes note-tts-spin {
   to {
     transform: rotate(360deg);
   }
 }
+

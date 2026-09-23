@@ -13,7 +13,7 @@ import {
   TFile,
 } from "obsidian";
 
-type ProviderId = "minimax" | "replicate" | "custom";
+type ProviderId = "volcengine" | "minimax" | "replicate" | "custom";
 type SettingsLanguage = "auto" | "zh" | "en";
 
 const REPLICATE_MINIMAX_MODEL = "minimax/speech-2.8-turbo";
@@ -39,6 +39,19 @@ const NOTE_TTS_PREVIEW_ICON_SVG = `
 <path d="M10 50c12-20 25-30 40-30s28 10 40 30c-12 20-25 30-40 30S22 70 10 50z" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="round"/>
 <circle cx="50" cy="50" r="13" fill="none" stroke="currentColor" stroke-width="9"/>
 `;
+
+const VOLCENGINE_VOICES = [
+  { id: "BV001_streaming", name: "通用知性女声 (灿灿同款体系)" },
+  { id: "BV002_streaming", name: "通用磁性男声" },
+  { id: "BV700_streaming", name: "灿灿 (阳光活泼女声，推荐)" },
+  { id: "BV007_streaming", name: "阳光青年男声" },
+  { id: "BV034_streaming", name: "知识科普讲解女声" },
+  { id: "BV102_streaming", name: "知识讲解男声" },
+  { id: "BV123_streaming", name: "知性温暖女声" },
+  { id: "BV119_streaming", name: "沉稳新闻播报男声" },
+  { id: "BV005_streaming", name: "亲切客服女声" },
+  { id: "custom", name: "自定义音色代码 (手动输入)" },
+];
 
 const REPLICATE_MINIMAX_VOICES = [
   "Wise_Woman",
@@ -78,6 +91,18 @@ interface NoteTtsSettings {
   addPauseAtLineBreaks: boolean;
   lineBreakPauseType: "period" | "comma";
   addSpaceAfterPunctuation: boolean;
+  volcengineAppId: string;
+  volcengineAccessToken: string;
+  volcengineCluster: string;
+  volcengineVoiceType: string;
+  volcengineCustomVoiceType: string;
+  volcengineEndpoint: string;
+  volcengineSpeed: number;
+  volcengineVolume: number;
+  volcenginePitch: number;
+  associateNoteFrontmatter: boolean;
+  frontmatterKey: string;
+  autoEmbedInNote: "none" | "top" | "bottom";
   minimaxApiKey: string;
   minimaxModel: string;
   minimaxVoiceId: string;
@@ -109,7 +134,20 @@ interface NoteTtsSettings {
 
 const DEFAULT_SETTINGS: NoteTtsSettings = {
   settingsLanguage: "auto",
-  provider: "minimax",
+  provider: "volcengine",
+  volcengineAppId: "",
+  volcengineAccessToken: "",
+  volcengineCluster: "volcano_tts",
+  volcengineVoiceType: "BV001_streaming",
+  volcengineCustomVoiceType: "",
+  volcengineEndpoint: "https://openspeech.bytedance.com/api/v1/tts",
+  volcengineSpeed: 1,
+  volcengineVolume: 1,
+  volcenginePitch: 1,
+  associateNoteFrontmatter: true,
+  frontmatterKey: "audio",
+  autoEmbedInNote: "none",
+
   outputFolder: "TTS Audio",
   maxCharacters: 10000,
   chunkCharacters: 1200,
@@ -186,6 +224,26 @@ class PendingTaskError extends Error {
 }
 
 type SettingsTextKey =
+  | "volcengineAppIdDesc"
+  | "volcengineAccessTokenDesc"
+  | "volcengineClusterDesc"
+  | "volcengineVoiceDesc"
+  | "volcengineCustomVoiceDesc"
+  | "volcengineSpeedDesc"
+  | "volcengineVolumeDesc"
+  | "volcenginePitchDesc"
+  | "noteAssociationHeading"
+  | "associateNoteFrontmatterName"
+  | "associateNoteFrontmatterDesc"
+  | "frontmatterKeyName"
+  | "frontmatterKeyDesc"
+  | "autoEmbedInNoteName"
+  | "autoEmbedInNoteDesc"
+  | "autoEmbedNone"
+  | "autoEmbedTop"
+  | "autoEmbedBottom"
+  | "testVolcengineButton"
+  | "testVolcengineDesc"
   | "settingsLanguageName"
   | "settingsLanguageDesc"
   | "settingsLanguageAuto"
@@ -297,6 +355,26 @@ const SETTINGS_TEXT: Record<"zh" | "en", Record<SettingsTextKey, string>> = {
     lineBreakPauseComma: "逗号 ，",
     addSpaceAfterPunctuationName: "标点符号后添加空格",
     addSpaceAfterPunctuationDesc: "在所有标点符号（如逗号、句号、分号、问号、感叹号、冒号、顿号等）后自动加上空格，帮助 TTS 语音在标点处发出更自然的短停顿。",
+    volcengineAppIdDesc: "在火山引擎控制台语音技术获取的 App ID。",
+    volcengineAccessTokenDesc: "在火山引擎控制台创建的 Access Token 或 API Key。",
+    volcengineClusterDesc: "默认使用 volcano_tts。",
+    volcengineVoiceDesc: "预置了墨问/剪映同款热门音色，也可选自定义输入代码。",
+    volcengineCustomVoiceDesc: "自定义 Voice Type 代码，如 BV001_streaming 等。",
+    volcengineSpeedDesc: "语速倍率，推荐 1.0 (范围 0.2 ~ 3.0)。",
+    volcengineVolumeDesc: "音量倍率，推荐 1.0 (范围 0.1 ~ 3.0)。",
+    volcenginePitchDesc: "音调倍率，推荐 1.0 (范围 0.1 ~ 3.0)。",
+    noteAssociationHeading: "笔记与音频双向关联",
+    associateNoteFrontmatterName: "写入笔记 Frontmatter 属性",
+    associateNoteFrontmatterDesc: "生成音频后，自动在当前笔记的 YAML 属性中记录音频链接 (如 audio: [[TTS Audio/xxx.mp3]])。",
+    frontmatterKeyName: "Frontmatter 字段名称",
+    frontmatterKeyDesc: "用于记录音频链接的 YAML 属性名，默认 audio。",
+    autoEmbedInNoteName: "自动在笔记正文插入播放组件",
+    autoEmbedInNoteDesc: "是否在笔记中插入 ![[...]] 语法，方便在笔记内直接出现播放器。",
+    autoEmbedNone: "不插入 (仅写入 Frontmatter)",
+    autoEmbedTop: "插入到笔记顶部",
+    autoEmbedBottom: "插入到笔记底部",
+    testVolcengineButton: "测试火山引擎音色",
+    testVolcengineDesc: "发送一句测试文本以验证 AppID、Token 与音色是否配置成功。",
     minimaxApiKeyDesc: "Bearer token。",
     minimaxEndpointDesc: "默认使用 HTTP T2A。",
     minimaxModelDesc: "例如 speech-2.8-turbo 或 speech-2.8-hd。",
@@ -367,6 +445,26 @@ const SETTINGS_TEXT: Record<"zh" | "en", Record<SettingsTextKey, string>> = {
     lineBreakPauseComma: "Comma ,",
     addSpaceAfterPunctuationName: "Add spaces after punctuation",
     addSpaceAfterPunctuationDesc: "Adds a space after punctuation marks, such as commas, periods, semicolons, question marks, exclamation marks, colons, and Chinese enumeration commas, to help TTS produce more natural short pauses.",
+    volcengineAppIdDesc: "App ID obtained from Volcengine Speech Console.",
+    volcengineAccessTokenDesc: "Access Token or API Key created in Volcengine Console.",
+    volcengineClusterDesc: "Defaults to volcano_tts.",
+    volcengineVoiceDesc: "Preset natural voices used in Mowen/Doubao, or enter a custom voice code.",
+    volcengineCustomVoiceDesc: "Custom Voice Type code, e.g. BV001_streaming.",
+    volcengineSpeedDesc: "Speech speed ratio, default 1.0 (range 0.2 ~ 3.0).",
+    volcengineVolumeDesc: "Volume ratio, default 1.0 (range 0.1 ~ 3.0).",
+    volcenginePitchDesc: "Pitch ratio, default 1.0 (range 0.1 ~ 3.0).",
+    noteAssociationHeading: "Note & Audio Bidirectional Association",
+    associateNoteFrontmatterName: "Write link to Note Frontmatter",
+    associateNoteFrontmatterDesc: "Automatically records the audio link (e.g. audio: [[TTS Audio/xxx.mp3]]) in the YAML frontmatter of the note.",
+    frontmatterKeyName: "Frontmatter Property Key",
+    frontmatterKeyDesc: "YAML property key for the audio link, defaults to audio.",
+    autoEmbedInNoteName: "Auto embed player in Note content",
+    autoEmbedInNoteDesc: "Inserts ![[...]] syntax to display an audio player directly inside the note.",
+    autoEmbedNone: "Do not embed (Frontmatter only)",
+    autoEmbedTop: "Embed at the top of note",
+    autoEmbedBottom: "Embed at the bottom of note",
+    testVolcengineButton: "Test Volcengine Voice",
+    testVolcengineDesc: "Sends a sample text to verify that AppID, Token, and Voice are configured properly.",
     minimaxApiKeyDesc: "Bearer token.",
     minimaxEndpointDesc: "Uses HTTP T2A by default.",
     minimaxModelDesc: "For example, speech-2.8-turbo or speech-2.8-hd.",
@@ -402,7 +500,19 @@ function getSettingsDisplayLanguage(selected: SettingsLanguage): "zh" | "en" {
   if (selected === "zh" || selected === "en") {
     return selected;
   }
-  return "en";
+  const locale = (window.localStorage.getItem("language") || navigator.language || "").toLowerCase();
+  return locale.startsWith("zh") ? "zh" : "en";
+}
+
+function createUuid(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 export default class NoteTtsPlugin extends Plugin {
@@ -413,16 +523,29 @@ export default class NoteTtsPlugin extends Plugin {
     await this.loadSettings();
     this.registerIcons();
 
-    this.addRibbonIcon(NOTE_TTS_NOTE_ICON, "Convert current note to speech", async () => {
+    this.addRibbonIcon(NOTE_TTS_NOTE_ICON, "听笔记：生成当前笔记语音", async () => {
       await this.synthesizeActiveView("note");
     });
 
     this.addCommand({
       id: "synthesize-current-note",
-      name: "Convert current note to speech",
+      name: "听笔记：生成当前笔记语音并保存到本地",
       icon: NOTE_TTS_NOTE_ICON,
       editorCallback: async (editor: Editor, view: MarkdownView) => {
         await this.synthesize(view, "note", editor);
+      },
+    });
+
+    this.addCommand({
+      id: "play-current-note-audio",
+      name: "听笔记：播放当前笔记关联的语音",
+      icon: NOTE_TTS_NOTE_ICON,
+      editorCallback: async (editor: Editor, view: MarkdownView) => {
+        if (view.file) {
+          await this.playAudioForNote(view.file);
+        } else {
+          new Notice("请先打开一篇笔记。");
+        }
       },
     });
 
@@ -483,7 +606,15 @@ export default class NoteTtsPlugin extends Plugin {
 
         menu.addItem((item) => {
           item
-            .setTitle("Convert note to speech")
+            .setTitle("听笔记：播放该笔记关联语音")
+            .setIcon(NOTE_TTS_NOTE_ICON)
+            .onClick(async () => {
+              await this.playAudioForNote(file);
+            });
+        });
+        menu.addItem((item) => {
+          item
+            .setTitle("听笔记：生成该笔记语音并保存")
             .setIcon(NOTE_TTS_NOTE_ICON)
             .onClick(async () => {
               await this.synthesizeFile(file);
@@ -546,7 +677,7 @@ export default class NoteTtsPlugin extends Plugin {
       status.setStatus("语音已生成。");
       status.close();
       new Notice("语音已生成。");
-      new AudioResultModal(this.app, saved).open();
+      new AudioResultModal(this.app, saved, file, this).open();
     } catch (error) {
       if (error instanceof PendingTaskError) {
         status.close();
@@ -594,7 +725,7 @@ export default class NoteTtsPlugin extends Plugin {
       status.setStatus("语音已生成。");
       status.close();
       new Notice("语音已生成。");
-      new AudioResultModal(this.app, saved).open();
+      new AudioResultModal(this.app, saved, activeFile, this).open();
     } catch (error) {
       if (error instanceof PendingTaskError) {
         status.close();
@@ -725,6 +856,9 @@ export default class NoteTtsPlugin extends Plugin {
   }
 
   private async generateAudio(text: string, status?: TtsStatusModal, sourceFile?: TFile): Promise<AudioResult> {
+    if (this.settings.provider === "volcengine") {
+      return this.generateWithVolcengine(text, status);
+    }
     if (this.settings.provider === "minimax") {
       return this.generateWithMiniMax(text, status);
     }
@@ -732,6 +866,101 @@ export default class NoteTtsPlugin extends Plugin {
       return this.generateWithReplicate(text, status);
     }
     return this.generateWithCustomProvider(text, status, sourceFile);
+  }
+
+  async testVolcengineVoice(): Promise<AudioResult> {
+    return this.requestVolcengineAudio("你好！这是听笔记插件的语音测试，说明你的火山引擎配置已完全正常。");
+  }
+
+  private async generateWithVolcengine(text: string, status?: TtsStatusModal): Promise<AudioResult> {
+    if (!this.settings.volcengineAppId?.trim() || !this.settings.volcengineAccessToken?.trim()) {
+      throw new Error("请先在设置中填写火山引擎的 AppID 和 Access Token。");
+    }
+
+    const chunkCharacters = Number(this.settings.chunkCharacters) || 0;
+    if (chunkCharacters > 0 && text.length > chunkCharacters) {
+      return this.generateWithVolcengineChunks(text, chunkCharacters, status);
+    }
+
+    return this.requestVolcengineAudio(text);
+  }
+
+  private async generateWithVolcengineChunks(text: string, chunkCharacters: number, status?: TtsStatusModal): Promise<AudioResult> {
+    const chunks = splitTextForTts(text, Math.max(80, chunkCharacters));
+    if (chunks.length <= 1) {
+      return this.requestVolcengineAudio(text);
+    }
+
+    const audios: AudioResult[] = [];
+    for (let index = 0; index < chunks.length; index++) {
+      status?.setStatus(`火山引擎正在生成分段 ${index + 1}/${chunks.length}...`);
+      audios.push(await this.requestVolcengineAudio(chunks[index]));
+    }
+
+    return combineAudioResults(audios, "火山引擎");
+  }
+
+  private async requestVolcengineAudio(text: string): Promise<AudioResult> {
+    const voice = this.settings.volcengineVoiceType === "custom"
+      ? (this.settings.volcengineCustomVoiceType || "BV001_streaming")
+      : (this.settings.volcengineVoiceType || "BV001_streaming");
+
+    const token = this.settings.volcengineAccessToken.trim();
+    const authHeader = token.startsWith("Bearer") ? token : `Bearer;${token}`;
+
+    const response = await requestUrlWithRetries({
+      url: this.settings.volcengineEndpoint || "https://openspeech.bytedance.com/api/v1/tts",
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        app: {
+          appid: this.settings.volcengineAppId.trim(),
+          token: token.replace(/^Bearer[;\s]+/i, ""),
+          cluster: this.settings.volcengineCluster?.trim() || "volcano_tts",
+        },
+        user: {
+          uid: "obsidian_user",
+        },
+        audio: {
+          voice_type: voice,
+          encoding: "mp3",
+          speed_ratio: Number(this.settings.volcengineSpeed) || 1.0,
+          volume_ratio: Number(this.settings.volcengineVolume) || 1.0,
+          pitch_ratio: Number(this.settings.volcenginePitch) || 1.0,
+        },
+        request: {
+          reqid: createUuid(),
+          text,
+          text_type: "plain",
+          operation: "query",
+        },
+      }),
+    }, {
+      attempts: 3,
+      baseDelayMs: 1500,
+      errorPrefix: "火山引擎语音合成请求失败",
+    });
+
+    const payload = response.json;
+    if (!payload) {
+      throw new Error("火山引擎未返回有效的 JSON 数据。");
+    }
+    if (payload.code !== 3000) {
+      throw new Error(`火山引擎返回错误 [${payload.code}]: ${payload.message || "合成失败"}`);
+    }
+    const audioBase64 = payload.data;
+    if (!audioBase64) {
+      throw new Error("火山引擎响应中未包含音频数据。");
+    }
+
+    return {
+      data: base64ToArrayBuffer(audioBase64),
+      extension: "mp3",
+      mimeType: "audio/mpeg",
+    };
   }
 
   private async generateWithMiniMax(text: string, status?: TtsStatusModal): Promise<AudioResult> {
@@ -1332,6 +1561,41 @@ export default class NoteTtsPlugin extends Plugin {
     };
   }
 
+  async playAudioForNote(file: TFile) {
+    // 1. 尝试从笔记 frontmatter 读取
+    const cache = this.app.metadataCache.getFileCache(file);
+    const fmKey = this.settings.frontmatterKey?.trim() || "audio";
+    const fmAudio = cache?.frontmatter?.[fmKey];
+    let targetPath: string | null = null;
+    if (typeof fmAudio === "string" && fmAudio.trim()) {
+      const match = fmAudio.match(/\[\[(.*?)\]\]/);
+      targetPath = match ? match[1] : fmAudio.trim();
+    }
+
+    if (targetPath) {
+      const audioFile = this.app.metadataCache.getFirstLinkpathDest(targetPath, file.path) || this.app.vault.getAbstractFileByPath(targetPath);
+      if (audioFile instanceof TFile) {
+        new AudioResultModal(this.app, audioFile, file, this).open();
+        return;
+      }
+    }
+
+    // 2. 尝试在输出目录查找匹配笔记名称的最新音频文件
+    const folder = normalizeFolder(this.settings.outputFolder);
+    const cleanBasename = file.basename.replace(/[\/:*?"<>|#^[\]]/g, "-").slice(0, 80);
+    const audioFiles = this.app.vault.getFiles().filter((f) => {
+      return f.path.startsWith(folder) && f.basename.startsWith(cleanBasename) && (f.extension === "mp3" || f.extension === "m4a" || f.extension === "wav");
+    });
+
+    if (audioFiles.length > 0) {
+      audioFiles.sort((a, b) => b.stat.mtime - a.stat.mtime);
+      new AudioResultModal(this.app, audioFiles[0], file, this).open();
+      return;
+    }
+
+    new Notice(`笔记「${file.basename}」尚未生成本地语音。可点击“生成当前笔记语音”进行合成。`);
+  }
+
   private async saveAudioFile(sourceFile: TFile, audio: AudioResult) {
     if (audio.vaultPath) {
       const synced = await this.waitForVaultFile(audio.vaultPath, undefined, 20000);
@@ -1429,31 +1693,103 @@ class CleanedTextPreviewModal extends Modal {
 
 class AudioResultModal extends Modal {
   private file: TFile;
+  private sourceFile: TFile | null = null;
+  private plugin: NoteTtsPlugin | null = null;
   private dragCleanup: (() => void) | null = null;
 
-  constructor(app: App, file: TFile) {
+  constructor(app: App, file: TFile, sourceFile?: TFile | null, plugin?: NoteTtsPlugin) {
     super(app);
     this.file = file;
+    this.sourceFile = sourceFile || null;
+    this.plugin = plugin || null;
   }
 
   onOpen() {
     const { contentEl } = this;
     this.modalEl.addClass("note-tts-draggable-modal");
     contentEl.addClass("note-tts-modal");
-    const title = contentEl.createEl("h2", { text: "语音已生成", cls: "note-tts-drag-handle" });
+    const title = contentEl.createEl("h2", { text: "🎧 听笔记 (Note Audio)", cls: "note-tts-drag-handle" });
     this.enableDrag(title);
-    contentEl.createEl("div", { text: this.file.path, cls: "note-tts-path" });
+
+    // 来源笔记双向关联展示卡片
+    const noteCard = contentEl.createDiv({ cls: "note-tts-source-card" });
+    let linkedNote = this.sourceFile;
+
+    if (!linkedNote) {
+      const match = this.file.basename.match(/^(.*?)-\d{4}-\d{2}-\d{2}T/);
+      const noteBaseName = match ? match[1] : this.file.basename;
+      const found = this.app.vault.getMarkdownFiles().find((f) => f.basename === noteBaseName);
+      if (found) {
+        linkedNote = found;
+      }
+    }
+
+    if (linkedNote) {
+      const noteInfo = noteCard.createDiv({ cls: "note-tts-source-info" });
+      noteInfo.createSpan({ text: "📄 关联笔记：", cls: "note-tts-source-label" });
+      const noteLink = noteInfo.createEl("a", { text: linkedNote.basename, cls: "note-tts-source-link" });
+      noteLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.app.workspace.openLinkText(linkedNote!.path, "", false);
+        new Notice(`已打开笔记：${linkedNote!.basename}`);
+      });
+      const jumpBtn = noteCard.createEl("button", { text: "打开笔记", cls: "mod-cta note-tts-jump-btn" });
+      jumpBtn.addEventListener("click", () => {
+        this.app.workspace.openLinkText(linkedNote!.path, "", false);
+        this.close();
+      });
+    } else {
+      noteCard.createDiv({ text: `📁 文件：${this.file.name}`, cls: "note-tts-path" });
+    }
 
     const audio = contentEl.createEl("audio", {
       attr: {
         controls: "true",
         src: this.app.vault.getResourcePath(this.file),
+        preload: "metadata",
       },
     });
-    audio.focus();
+
+    // 倍速播放控制
+    const speedBar = contentEl.createDiv({ cls: "note-tts-speed-bar" });
+    speedBar.createSpan({ text: "倍速：", cls: "note-tts-speed-label" });
+    const speeds = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    speeds.forEach((s) => {
+      const btn = speedBar.createEl("button", {
+        text: `${s}x`,
+        cls: s === 1.0 ? "note-tts-speed-btn is-active" : "note-tts-speed-btn",
+      });
+      btn.addEventListener("click", () => {
+        audio.playbackRate = s;
+        speedBar.querySelectorAll(".note-tts-speed-btn").forEach((b) => b.removeClass("is-active"));
+        btn.addClass("is-active");
+      });
+    });
+
+    // 快进快退 15 秒控制
+    const seekControls = contentEl.createDiv({ cls: "note-tts-seek-controls" });
+    const backBtn = seekControls.createEl("button", { text: "⏪ 快退 15s", cls: "note-tts-seek-btn" });
+    backBtn.addEventListener("click", () => {
+      audio.currentTime = Math.max(0, audio.currentTime - 15);
+    });
+    const fwdBtn = seekControls.createEl("button", { text: "⏩ 快进 15s", cls: "note-tts-seek-btn" });
+    fwdBtn.addEventListener("click", () => {
+      audio.currentTime = Math.min(audio.duration || 999999, audio.currentTime + 15);
+    });
 
     const actions = contentEl.createDiv({ cls: "note-tts-actions" });
     new Setting(actions)
+      .addButton((button) =>
+        button
+          .setButtonText("打开对应笔记")
+          .setDisabled(!linkedNote)
+          .onClick(() => {
+            if (linkedNote) {
+              this.app.workspace.openLinkText(linkedNote.path, "", false);
+              this.close();
+            }
+          })
+      )
       .addButton((button) =>
         button
           .setButtonText("打开音频文件")
@@ -1466,7 +1802,17 @@ class AudioResultModal extends Modal {
             await navigator.clipboard.writeText(this.file.path);
             new Notice("已复制音频路径。");
           })
+      )
+      .addButton((button) =>
+        button
+          .setButtonText("复制嵌入语法")
+          .onClick(async () => {
+            await navigator.clipboard.writeText(`![[${this.file.path}]]`);
+            new Notice("已复制 ![[...]] 语法。");
+          })
       );
+
+    audio.focus();
   }
 
   onClose() {
@@ -1575,11 +1921,12 @@ class NoteTtsSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+        new Setting(containerEl)
       .setName("Provider")
       .setDesc(t("providerDesc"))
       .addDropdown((dropdown) =>
         dropdown
+          .addOption("volcengine", "火山引擎 (豆包大模型语音 - 墨问同款)")
           .addOption("minimax", "MiniMax")
           .addOption("replicate", "Replicate")
           .addOption("custom", "Custom HTTP")
@@ -1691,6 +2038,178 @@ class NoteTtsSettingTab extends PluginSettingTab {
       t("addSpaceAfterPunctuationDesc"),
       "addSpaceAfterPunctuation"
     );
+
+
+    if (this.plugin.settings.provider === "volcengine") {
+      new Setting(containerEl)
+        .setName("火山引擎 (豆包语音合成配置)")
+        .setHeading();
+
+      new Setting(containerEl)
+        .setName("App ID")
+        .setDesc(t("volcengineAppIdDesc"))
+        .addText((text) =>
+          text
+            .setPlaceholder("例如 1234567890")
+            .setValue(this.plugin.settings.volcengineAppId)
+            .onChange(async (value) => {
+              this.plugin.settings.volcengineAppId = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+
+      new Setting(containerEl)
+        .setName("Access Token / API Key")
+        .setDesc(t("volcengineAccessTokenDesc"))
+        .addText((text) => {
+          text.inputEl.type = "password";
+          text
+            .setPlaceholder("Bearer token 或 Access Token")
+            .setValue(this.plugin.settings.volcengineAccessToken)
+            .onChange(async (value) => {
+              this.plugin.settings.volcengineAccessToken = value.trim();
+              await this.plugin.saveSettings();
+            });
+        });
+
+      new Setting(containerEl)
+        .setName("Cluster ID")
+        .setDesc(t("volcengineClusterDesc"))
+        .addText((text) =>
+          text
+            .setPlaceholder("volcano_tts")
+            .setValue(this.plugin.settings.volcengineCluster || "volcano_tts")
+            .onChange(async (value) => {
+              this.plugin.settings.volcengineCluster = value.trim() || "volcano_tts";
+              await this.plugin.saveSettings();
+            })
+        );
+
+      new Setting(containerEl)
+        .setName("音色选择 (Voice Type)")
+        .setDesc(t("volcengineVoiceDesc"))
+        .addDropdown((dropdown) => {
+          VOLCENGINE_VOICES.forEach((voice) => {
+            dropdown.addOption(voice.id, voice.name);
+          });
+          dropdown.setValue(this.plugin.settings.volcengineVoiceType || "BV001_streaming");
+          dropdown.onChange(async (value) => {
+            this.plugin.settings.volcengineVoiceType = value;
+            await this.plugin.saveSettings();
+            this.renderSettings();
+          });
+        });
+
+      if (this.plugin.settings.volcengineVoiceType === "custom") {
+        new Setting(containerEl)
+          .setName("自定义 Voice Type 代码")
+          .setDesc(t("volcengineCustomVoiceDesc"))
+          .addText((text) =>
+            text
+              .setPlaceholder("例如 BV001_streaming")
+              .setValue(this.plugin.settings.volcengineCustomVoiceType || "")
+              .onChange(async (value) => {
+                this.plugin.settings.volcengineCustomVoiceType = value.trim();
+                await this.plugin.saveSettings();
+              })
+          );
+      }
+
+      new Setting(containerEl)
+        .setName("语速倍率 (Speed)")
+        .setDesc(t("volcengineSpeedDesc"))
+        .addSlider((slider) =>
+          slider
+            .setLimits(0.5, 2.0, 0.1)
+            .setValue(this.plugin.settings.volcengineSpeed ?? 1.0)
+            .setDynamicTooltip()
+            .onChange(async (value) => {
+              this.plugin.settings.volcengineSpeed = value;
+              await this.plugin.saveSettings();
+            })
+        );
+
+      new Setting(containerEl)
+        .setName(t("testVolcengineButton"))
+        .setDesc(t("testVolcengineDesc"))
+        .addButton((button) =>
+          button
+            .setButtonText("▶ 试听测试语音")
+            .onClick(async () => {
+              if (!this.plugin.settings.volcengineAppId || !this.plugin.settings.volcengineAccessToken) {
+                new Notice("请先填写 App ID 和 Access Token。");
+                return;
+              }
+              button.setButtonText("正在请求...");
+              button.setDisabled(true);
+              try {
+                const res = await this.plugin.testVolcengineVoice();
+                button.setButtonText("测试成功 ✓");
+                new Notice("火山引擎语音合成成功！");
+                if (res.data) {
+                  const blob = new Blob([res.data], { type: "audio/mpeg" });
+                  const url = URL.createObjectURL(blob);
+                  const a = new Audio(url);
+                  a.play();
+                }
+              } catch (err) {
+                console.error(err);
+                new Notice(`测试失败: ${errorMessage(err)}`, 8000);
+                button.setButtonText("测试失败 ✗");
+              } finally {
+                setTimeout(() => {
+                  button.setButtonText("▶ 试听测试语音");
+                  button.setDisabled(false);
+                }, 3000);
+              }
+            })
+        );
+    }
+
+    // 笔记关联设置区块
+    new Setting(containerEl)
+      .setName(t("noteAssociationHeading"))
+      .setHeading();
+
+    new Setting(containerEl)
+      .setName(t("associateNoteFrontmatterName"))
+      .setDesc(t("associateNoteFrontmatterDesc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.associateNoteFrontmatter ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.associateNoteFrontmatter = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("frontmatterKeyName"))
+      .setDesc(t("frontmatterKeyDesc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("audio")
+          .setValue(this.plugin.settings.frontmatterKey || "audio")
+          .onChange(async (value) => {
+            this.plugin.settings.frontmatterKey = value.trim() || "audio";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("autoEmbedInNoteName"))
+      .setDesc(t("autoEmbedInNoteDesc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("none", t("autoEmbedNone"))
+          .addOption("top", t("autoEmbedTop"))
+          .addOption("bottom", t("autoEmbedBottom"))
+          .setValue(this.plugin.settings.autoEmbedInNote || "none")
+          .onChange(async (value: "none" | "top" | "bottom") => {
+            this.plugin.settings.autoEmbedInNote = value;
+            await this.plugin.saveSettings();
+          })
+      );
 
     if (this.plugin.settings.provider === "minimax") {
       this.displayMiniMaxSettings(containerEl, t);
