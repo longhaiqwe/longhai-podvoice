@@ -41,16 +41,11 @@ const NOTE_TTS_PREVIEW_ICON_SVG = `
 `;
 
 const VOLCENGINE_VOICES = [
-  { id: "BV001_streaming", name: "通用知性女声 (灿灿同款体系)" },
-  { id: "BV002_streaming", name: "通用磁性男声" },
-  { id: "BV700_streaming", name: "灿灿 (阳光活泼女声，推荐)" },
-  { id: "BV007_streaming", name: "阳光青年男声" },
-  { id: "BV034_streaming", name: "知识科普讲解女声" },
-  { id: "BV102_streaming", name: "知识讲解男声" },
-  { id: "BV123_streaming", name: "知性温暖女声" },
-  { id: "BV119_streaming", name: "沉稳新闻播报男声" },
-  { id: "BV005_streaming", name: "亲切客服女声" },
-  { id: "custom", name: "自定义音色代码 (手动输入)" },
+  { id: "BV001_streaming", name: "⭐ 墨问同款·知性女声 (BV001 默认推荐)" },
+  { id: "BV002_streaming", name: "⭐ 墨问同款·磁性男声 (BV002 沉稳耐听)" },
+  { id: "BV700_streaming", name: "豆包爆款·灿灿 (BV700 阳光亲切女声)" },
+  { id: "BV119_streaming", name: "新闻纪实·沉稳男声 (BV119 播音腔)" },
+  { id: "custom", name: "自定义音色代码 (手动输入其他音色)" },
 ];
 
 const REPLICATE_MINIMAX_VOICES = [
