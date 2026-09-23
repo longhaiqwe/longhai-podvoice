@@ -1,9 +1,9 @@
 {
-  "id": "note-audio",
-  "name": "听笔记 (Note Audio)",
+  "id": "longhai-podvoice",
+  "name": "Longhai PodVoice",
   "version": "1.0.0",
   "minAppVersion": "1.5.0",
-  "description": "将笔记转换为本地高品质有声语音（默认支持墨问同款火山引擎豆包语音），本地保存并与笔记双向关联，支持电脑与手机端。",
+  "description": "Longhai PodVoice — 播客级有声笔记插件：将笔记转换为高品质语音（默认搭载墨问同款火山引擎豆包大模型语音），本地持久化保存、防膨胀覆盖更新并与笔记双向强关联，支持电脑与手机端。",
   "author": "龙海",
   "isDesktopOnly": false
 }

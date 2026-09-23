@@ -100,6 +100,8 @@ interface NoteTtsSettings {
   volcengineSpeed: number;
   volcengineVolume: number;
   volcenginePitch: number;
+  keepOnlyLatestAudio: boolean;
+  audioNamingMode: "clean" | "timestamp";
   associateNoteFrontmatter: boolean;
   frontmatterKey: string;
   autoEmbedInNote: "none" | "top" | "bottom";
@@ -147,6 +149,8 @@ const DEFAULT_SETTINGS: NoteTtsSettings = {
   associateNoteFrontmatter: true,
   frontmatterKey: "audio",
   autoEmbedInNote: "none",
+  keepOnlyLatestAudio: true,
+  audioNamingMode: "clean",
 
   outputFolder: "TTS Audio",
   maxCharacters: 10000,
@@ -232,6 +236,13 @@ type SettingsTextKey =
   | "volcengineSpeedDesc"
   | "volcengineVolumeDesc"
   | "volcenginePitchDesc"
+  | "storageHeading"
+  | "storageStatsDesc"
+  | "keepOnlyLatestAudioName"
+  | "keepOnlyLatestAudioDesc"
+  | "cleanOrphansBtn"
+  | "clearAllAudiosBtn"
+  | "clearAllConfirm"
   | "noteAssociationHeading"
   | "associateNoteFrontmatterName"
   | "associateNoteFrontmatterDesc"
@@ -363,6 +374,13 @@ const SETTINGS_TEXT: Record<"zh" | "en", Record<SettingsTextKey, string>> = {
     volcengineSpeedDesc: "语速倍率，推荐 1.0 (范围 0.2 ~ 3.0)。",
     volcengineVolumeDesc: "音量倍率，推荐 1.0 (范围 0.1 ~ 3.0)。",
     volcenginePitchDesc: "音调倍率，推荐 1.0 (范围 0.1 ~ 3.0)。",
+    storageHeading: "存储空间与缓存管理 (防膨胀)",
+    storageStatsDesc: "统计当前本地 Vault 中保存的音频文件及占用容量。",
+    keepOnlyLatestAudioName: "单笔记覆盖模式 (防无限增加)",
+    keepOnlyLatestAudioDesc: "同一篇笔记重新生成语音时，直接覆盖/替换旧音频，不无限生成多份历史文件，节省磁盘与 iCloud 同步空间。",
+    cleanOrphansBtn: "清理孤立音频 (无对应笔记)",
+    clearAllAudiosBtn: "一键清空所有生成的音频",
+    clearAllConfirm: "确定要清空 TTS Audio 目录下的所有音频吗？笔记文本不会受到任何影响。",
     noteAssociationHeading: "笔记与音频双向关联",
     associateNoteFrontmatterName: "写入笔记 Frontmatter 属性",
     associateNoteFrontmatterDesc: "生成音频后，自动在当前笔记的 YAML 属性中记录音频链接 (如 audio: [[TTS Audio/xxx.mp3]])。",
@@ -453,6 +471,13 @@ const SETTINGS_TEXT: Record<"zh" | "en", Record<SettingsTextKey, string>> = {
     volcengineSpeedDesc: "Speech speed ratio, default 1.0 (range 0.2 ~ 3.0).",
     volcengineVolumeDesc: "Volume ratio, default 1.0 (range 0.1 ~ 3.0).",
     volcenginePitchDesc: "Pitch ratio, default 1.0 (range 0.1 ~ 3.0).",
+    storageHeading: "Storage & Cache Management (Anti-bloat)",
+    storageStatsDesc: "Statistics of local audio files stored in your vault and storage usage.",
+    keepOnlyLatestAudioName: "Single-note Overwrite Mode",
+    keepOnlyLatestAudioDesc: "Overwrites previous audio when regenerating for the same note, avoiding accumulating duplicate files and saving iCloud sync bandwidth.",
+    cleanOrphansBtn: "Clean Orphan Audios",
+    clearAllAudiosBtn: "Clear All Generated Audios",
+    clearAllConfirm: "Are you sure you want to delete all audio files in the TTS Audio folder? Note contents will not be affected.",
     noteAssociationHeading: "Note & Audio Bidirectional Association",
     associateNoteFrontmatterName: "Write link to Note Frontmatter",
     associateNoteFrontmatterDesc: "Automatically records the audio link (e.g. audio: [[TTS Audio/xxx.mp3]]) in the YAML frontmatter of the note.",
@@ -1561,6 +1586,70 @@ export default class NoteTtsPlugin extends Plugin {
     };
   }
 
+
+  async getStorageStats() {
+    const folder = normalizeFolder(this.settings.outputFolder);
+    const audioFiles = this.app.vault.getFiles().filter((f) => {
+      return (
+        f.path.startsWith(folder + "/") &&
+        (f.extension === "mp3" || f.extension === "m4a" || f.extension === "wav")
+      );
+    });
+
+    let totalBytes = 0;
+    for (const f of audioFiles) {
+      totalBytes += f.stat.size || 0;
+    }
+
+    const allMdFiles = this.app.vault.getMarkdownFiles();
+    const mdBaseNames = new Set(allMdFiles.map((m) => m.basename));
+
+    const orphanFiles: TFile[] = [];
+    for (const f of audioFiles) {
+      const match = f.basename.match(/^(.*?)(?:-\d{4}-\d{2}-\d{2}T.*)?$/);
+      const inferredNote = match ? match[1] : f.basename;
+      if (!mdBaseNames.has(inferredNote)) {
+        orphanFiles.push(f);
+      }
+    }
+
+    return {
+      count: audioFiles.length,
+      totalBytes,
+      orphanCount: orphanFiles.length,
+      orphanFiles,
+      audioFiles,
+    };
+  }
+
+  async cleanOrphanAudios(): Promise<number> {
+    const stats = await this.getStorageStats();
+    let cleaned = 0;
+    for (const file of stats.orphanFiles) {
+      try {
+        await this.app.vault.delete(file);
+        cleaned++;
+      } catch (err) {
+        console.warn("删除孤立音频失败:", file.path, err);
+      }
+    }
+    return cleaned;
+  }
+
+  async clearAllAudios(): Promise<number> {
+    const stats = await this.getStorageStats();
+    let cleaned = 0;
+    for (const file of stats.audioFiles) {
+      try {
+        await this.app.vault.delete(file);
+        cleaned++;
+      } catch (err) {
+        console.warn("清空音频失败:", file.path, err);
+      }
+    }
+    return cleaned;
+  }
+
   async playAudioForNote(file: TFile) {
     // 1. 尝试从笔记 frontmatter 读取
     const cache = this.app.metadataCache.getFileCache(file);
@@ -1596,13 +1685,13 @@ export default class NoteTtsPlugin extends Plugin {
     new Notice(`笔记「${file.basename}」尚未生成本地语音。可点击“生成当前笔记语音”进行合成。`);
   }
 
-  private async saveAudioFile(sourceFile: TFile, audio: AudioResult) {
+  private async saveAudioFile(sourceFile: TFile, audio: AudioResult): Promise<TFile> {
     if (audio.vaultPath) {
       const synced = await this.waitForVaultFile(audio.vaultPath, undefined, 20000);
       if (synced) {
         return synced;
       }
-      throw new PendingTaskError(`语音已保存在 Mac mini 的 iCloud：${audio.vaultPath}。手机 iCloud 还没同步到，稍后会出现在 TTS Audio 文件夹。`);
+      throw new PendingTaskError(`语音已保存在 iCloud：${audio.vaultPath}。手机 iCloud 还没同步到，稍后会出现在 TTS Audio 文件夹。`);
     }
 
     if (!audio.data) {
@@ -1612,10 +1701,80 @@ export default class NoteTtsPlugin extends Plugin {
     const folder = normalizeFolder(this.settings.outputFolder);
     await ensureFolder(this.app, folder);
 
-    const basename = sourceFile.basename.replace(/[\\/:*?"<>|#^[\]]/g, "-").slice(0, 80);
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const path = `${folder}/${basename}-${timestamp}.${audio.extension || "mp3"}`;
-    return this.app.vault.createBinary(path, audio.data);
+    const basename = sourceFile.basename.replace(/[\/:*?"<>|#^[\]]/g, "-").slice(0, 80);
+    const ext = audio.extension || "mp3";
+
+    let targetPath = "";
+    let audioFile: TFile;
+
+    if (this.settings.audioNamingMode === "clean" || this.settings.keepOnlyLatestAudio) {
+      targetPath = `${folder}/${basename}.${ext}`;
+      const existing = this.app.vault.getAbstractFileByPath(targetPath);
+      if (existing instanceof TFile) {
+        await this.app.vault.modifyBinary(existing, audio.data);
+        audioFile = existing;
+      } else {
+        audioFile = await this.app.vault.createBinary(targetPath, audio.data);
+      }
+
+      if (this.settings.keepOnlyLatestAudio) {
+        const legacyOldFiles = this.app.vault.getFiles().filter((f) => {
+          return (
+            f.path.startsWith(folder + "/") &&
+            f.path !== targetPath &&
+            f.basename.startsWith(basename + "-20") &&
+            (f.extension === "mp3" || f.extension === "m4a" || f.extension === "wav")
+          );
+        });
+        for (const oldFile of legacyOldFiles) {
+          try {
+            await this.app.vault.delete(oldFile);
+          } catch (e) {
+            console.warn("清理旧时间戳音频失败:", oldFile.path, e);
+          }
+        }
+      }
+    } else {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      targetPath = `${folder}/${basename}-${timestamp}.${ext}`;
+      audioFile = await this.app.vault.createBinary(targetPath, audio.data);
+    }
+
+    if (this.settings.associateNoteFrontmatter && sourceFile.extension === "md") {
+      try {
+        await this.app.fileManager.processFrontMatter(sourceFile, (fm) => {
+          const key = this.settings.frontmatterKey?.trim() || "audio";
+          fm[key] = `[[${targetPath}]]`;
+        });
+      } catch (err) {
+        console.warn("写入 Frontmatter 失败:", err);
+      }
+    }
+
+    if (this.settings.autoEmbedInNote !== "none" && sourceFile.extension === "md") {
+      try {
+        const content = await this.app.vault.read(sourceFile);
+        const embedTag = `![[${targetPath}]]\n\n`;
+        if (!content.includes(`![[${targetPath}]]`)) {
+          if (this.settings.autoEmbedInNote === "top") {
+            const fmMatch = content.match(/^---\n[\s\S]*?\n---\n/);
+            if (fmMatch) {
+              const prefixLen = fmMatch[0].length;
+              const newContent = content.slice(0, prefixLen) + embedTag + content.slice(prefixLen);
+              await this.app.vault.modify(sourceFile, newContent);
+            } else {
+              await this.app.vault.modify(sourceFile, embedTag + content);
+            }
+          } else if (this.settings.autoEmbedInNote === "bottom") {
+            await this.app.vault.modify(sourceFile, content + "\n\n" + embedTag);
+          }
+        }
+      } catch (err) {
+        console.warn("正文插入嵌入标签失败:", err);
+      }
+    }
+
+    return audioFile;
   }
 
   private async waitForVaultFile(path: string, status?: TtsStatusModal, timeoutMs = 20000): Promise<TFile | null> {
@@ -2165,6 +2324,95 @@ class NoteTtsSettingTab extends PluginSettingTab {
             })
         );
     }
+
+
+    // 存储空间管理专区
+    new Setting(containerEl)
+      .setName(t("storageHeading"))
+      .setHeading();
+
+    const storageStatsSetting = new Setting(containerEl)
+      .setName("当前音频占用")
+      .setDesc("正在计算...");
+
+    const refreshStorageDisplay = async () => {
+      const stats = await this.plugin.getStorageStats();
+      const mb = (stats.totalBytes / (1024 * 1024)).toFixed(2);
+      storageStatsSetting.setDesc(
+        `共 ${stats.count} 个音频文件，占用 ${mb} MB（其中 ${stats.orphanCount} 个为无对应笔记的孤立文件）。`
+      );
+    };
+    refreshStorageDisplay();
+
+    new Setting(containerEl)
+      .setName(t("keepOnlyLatestAudioName"))
+      .setDesc(t("keepOnlyLatestAudioDesc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.keepOnlyLatestAudio ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.keepOnlyLatestAudio = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("音频命名风格")
+      .setDesc("简洁模式直接使用 [笔记名].mp3，覆盖生成；时间戳模式在每次文件名后附加时间。")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("clean", "简洁覆盖模式 ([笔记名].mp3)")
+          .addOption("timestamp", "时间戳模式 ([笔记名]-时间.mp3)")
+          .setValue(this.plugin.settings.audioNamingMode || "clean")
+          .onChange(async (value: "clean" | "timestamp") => {
+            this.plugin.settings.audioNamingMode = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("cleanOrphansBtn"))
+      .setDesc("清理那些原 Markdown 笔记已经被删除的孤立音频文件，释放磁盘空间。")
+      .addButton((button) =>
+        button
+          .setButtonText("🧹 扫描并清理孤立音频")
+          .onClick(async () => {
+            button.setDisabled(true);
+            const count = await this.plugin.cleanOrphanAudios();
+            new Notice(`已清理 ${count} 个孤立音频文件。`);
+            await refreshStorageDisplay();
+            button.setDisabled(false);
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("clearAllAudiosBtn"))
+      .setDesc("一键清空 TTS Audio 目录下的所有音频文件（笔记文本完好无损，需要听时可随时重新生成）。")
+      .addButton((button) =>
+        button
+          .setButtonText("🗑️ 清空所有音频")
+          .setWarning()
+          .onClick(async () => {
+            if (confirm(t("clearAllConfirm"))) {
+              button.setDisabled(true);
+              const count = await this.plugin.clearAllAudios();
+              new Notice(`已清空 ${count} 个音频文件。`);
+              await refreshStorageDisplay();
+              button.setDisabled(false);
+            }
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("💡 避坑建议：排除 TTS Audio 避免索引")
+      .setDesc("建议前往 Obsidian「设置 ➔ 文件与链接 ➔ 已排除的文件」，将 TTS Audio 文件夹添加进去。这样 Obsidian 在启动、搜索和构建关系图谱时会完全跳过该目录，加载飞快！")
+      .addButton((button) =>
+        button
+          .setButtonText("我知道了")
+          .onClick(() => {
+            new Notice("建议在「文件与链接」设置中添加排除文件夹 TTS Audio。");
+          })
+      );
 
     // 笔记关联设置区块
     new Setting(containerEl)

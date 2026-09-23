@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-note-audio",
+  "name": "longhai-podvoice",
   "version": "1.0.0",
-  "description": "Obsidian 听笔记插件：将笔记转换为本地高品质有声语音（默认支持火山引擎豆包语音），本地保存并与笔记双向关联。",
+  "description": "Longhai PodVoice — Obsidian 播客级有声笔记插件：将笔记转换为高品质语音（默认支持火山引擎豆包语音），本地保存并与笔记双向关联。",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
