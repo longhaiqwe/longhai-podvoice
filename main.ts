@@ -1,5 +1,6 @@
 import {
   addIcon,
+  setIcon,
   App,
   Editor,
   Menu,
@@ -538,6 +539,7 @@ function createUuid(): string {
 export default class NoteTtsPlugin extends Plugin {
   settings: NoteTtsSettings;
   pendingTasks: PendingTtsTask[] = [];
+  activeSynthesizingPaths: Set<string> = new Set();
 
   async onload() {
     await this.loadSettings();
@@ -643,7 +645,38 @@ export default class NoteTtsPlugin extends Plugin {
       })
     );
 
+    // 监听视图切换与渲染，自动在文章标题旁挂载「听笔记 / 播放」按钮
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", () => {
+        this.refreshAllInlineButtons();
+      })
+    );
+    this.registerEvent(
+      this.app.workspace.on("file-open", () => {
+        this.refreshAllInlineButtons();
+      })
+    );
+    this.registerEvent(
+      this.app.workspace.on("layout-change", () => {
+        this.refreshAllInlineButtons();
+      })
+    );
+    this.registerEvent(
+      this.app.metadataCache.on("changed", () => {
+        this.refreshAllInlineButtons();
+      })
+    );
+
+    this.app.workspace.onLayoutReady(() => {
+      this.refreshAllInlineButtons();
+    });
+
     this.addSettingTab(new NoteTtsSettingTab(this.app, this));
+  }
+
+  onunload() {
+    document.querySelectorAll(".podvoice-inline-btn").forEach((el) => el.remove());
+    document.querySelectorAll(".podvoice-header-btn").forEach((el) => el.remove());
   }
 
   async loadSettings() {
@@ -671,19 +704,25 @@ export default class NoteTtsPlugin extends Plugin {
     await this.synthesize(view, mode, view.editor);
   }
 
-  private async synthesizeFile(file: TFile) {
+  async synthesizeFile(file: TFile) {
+    this.activeSynthesizingPaths.add(file.path);
+    this.refreshAllInlineButtons();
     const status = new TtsStatusModal(this.app);
     status.open();
     status.setStatus("正在读取笔记...");
 
     const text = this.prepareText(await this.app.vault.read(file));
     if (!text.trim()) {
+      this.activeSynthesizingPaths.delete(file.path);
+      this.refreshAllInlineButtons();
       status.close();
       new Notice("没有可转换的笔记内容。");
       return;
     }
 
     if (text.length > this.settings.maxCharacters) {
+      this.activeSynthesizingPaths.delete(file.path);
+      this.refreshAllInlineButtons();
       status.close();
       new Notice(`文本超过 ${this.settings.maxCharacters} 字符，请先选中较短片段。`);
       return;
@@ -708,10 +747,19 @@ export default class NoteTtsPlugin extends Plugin {
       const message = error instanceof Error ? error.message : String(error);
       status.setError(message);
       new Notice(`生成失败：${message}`);
+    } finally {
+      this.activeSynthesizingPaths.delete(file.path);
+      this.refreshAllInlineButtons();
     }
   }
 
   private async synthesize(view: MarkdownView, mode: "note" | "selection", editor?: Editor) {
+    const activeFile = view.file;
+    if (activeFile && mode === "note") {
+      this.activeSynthesizingPaths.add(activeFile.path);
+      this.refreshAllInlineButtons();
+    }
+
     const status = new TtsStatusModal(this.app);
     status.open();
     status.setStatus(mode === "selection" ? "正在读取选中文本..." : "正在读取当前笔记...");
@@ -719,18 +767,25 @@ export default class NoteTtsPlugin extends Plugin {
     const sourceText = await this.getTextForMode(view, mode, editor);
     const text = this.prepareText(sourceText);
     if (!text.trim()) {
+      if (activeFile && mode === "note") {
+        this.activeSynthesizingPaths.delete(activeFile.path);
+        this.refreshAllInlineButtons();
+      }
       status.close();
       new Notice(mode === "selection" ? "请先选择要转换的文本。" : "没有可转换的笔记内容。");
       return;
     }
 
     if (text.length > this.settings.maxCharacters) {
+      if (activeFile && mode === "note") {
+        this.activeSynthesizingPaths.delete(activeFile.path);
+        this.refreshAllInlineButtons();
+      }
       status.close();
       new Notice(`文本超过 ${this.settings.maxCharacters} 字符，请先选中较短片段。`);
       return;
     }
 
-    const activeFile = view.file;
     if (!activeFile) {
       status.close();
       new Notice("没有找到当前笔记文件。");
@@ -756,6 +811,11 @@ export default class NoteTtsPlugin extends Plugin {
       const message = error instanceof Error ? error.message : String(error);
       status.setError(message);
       new Notice(`生成失败：${message}`);
+    } finally {
+      if (activeFile && mode === "note") {
+        this.activeSynthesizingPaths.delete(activeFile.path);
+        this.refreshAllInlineButtons();
+      }
     }
   }
 
@@ -1648,7 +1708,7 @@ export default class NoteTtsPlugin extends Plugin {
     return cleaned;
   }
 
-  async playAudioForNote(file: TFile) {
+  findExistingAudioForNote(file: TFile): TFile | null {
     // 1. 尝试从笔记 frontmatter 读取
     const cache = this.app.metadataCache.getFileCache(file);
     const fmKey = this.settings.frontmatterKey?.trim() || "audio";
@@ -1662,8 +1722,7 @@ export default class NoteTtsPlugin extends Plugin {
     if (targetPath) {
       const audioFile = this.app.metadataCache.getFirstLinkpathDest(targetPath, file.path) || this.app.vault.getAbstractFileByPath(targetPath);
       if (audioFile instanceof TFile) {
-        new AudioResultModal(this.app, audioFile, file, this).open();
-        return;
+        return audioFile;
       }
     }
 
@@ -1671,16 +1730,136 @@ export default class NoteTtsPlugin extends Plugin {
     const folder = normalizeFolder(this.settings.outputFolder);
     const cleanBasename = file.basename.replace(/[\/:*?"<>|#^[\]]/g, "-").slice(0, 80);
     const audioFiles = this.app.vault.getFiles().filter((f) => {
-      return f.path.startsWith(folder) && f.basename.startsWith(cleanBasename) && (f.extension === "mp3" || f.extension === "m4a" || f.extension === "wav");
+      return (
+        f.path.startsWith(folder) &&
+        f.basename.startsWith(cleanBasename) &&
+        (f.extension === "mp3" || f.extension === "m4a" || f.extension === "wav")
+      );
     });
 
     if (audioFiles.length > 0) {
       audioFiles.sort((a, b) => b.stat.mtime - a.stat.mtime);
-      new AudioResultModal(this.app, audioFiles[0], file, this).open();
+      return audioFiles[0];
+    }
+
+    return null;
+  }
+
+  async playAudioForNote(file: TFile) {
+    const audioFile = this.findExistingAudioForNote(file);
+    if (audioFile) {
+      new AudioResultModal(this.app, audioFile, file, this).open();
+      return;
+    }
+    new Notice(`笔记「${file.basename}」尚未生成本地语音。可点击“听笔记”进行合成。`);
+  }
+
+  refreshAllInlineButtons() {
+    const leaves = this.app.workspace.getLeavesOfType("markdown");
+    for (const leaf of leaves) {
+      if (leaf.view instanceof MarkdownView) {
+        this.mountInlineTitleButton(leaf.view);
+        this.mountHeaderActionButton(leaf.view);
+      }
+    }
+  }
+
+  mountInlineTitleButton(view: MarkdownView) {
+    const file = view.file;
+    if (!file) return;
+
+    const titleEls = view.containerEl.querySelectorAll(".inline-title");
+    titleEls.forEach((titleEl) => {
+      let btn = titleEl.parentElement?.querySelector(":scope > .podvoice-inline-btn") as HTMLButtonElement | null;
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.className = "podvoice-inline-btn";
+        btn.type = "button";
+        btn.addEventListener("click", (evt) => {
+          evt.preventDefault();
+          evt.stopPropagation();
+          this.handleNoteAudioAction(view);
+        });
+        titleEl.insertAdjacentElement("beforebegin", btn);
+      }
+      this.updateButtonState(btn, view, file);
+    });
+  }
+
+  mountHeaderActionButton(view: MarkdownView) {
+    const file = view.file;
+    if (!file) return;
+
+    const headerActions = view.containerEl.querySelector(".view-header-actions");
+    if (!headerActions) return;
+
+    let headerBtn = headerActions.querySelector(".podvoice-header-btn") as HTMLElement | null;
+    if (!headerBtn) {
+      headerBtn = document.createElement("div");
+      headerBtn.className = "clickable-icon view-action podvoice-header-btn";
+      setIcon(headerBtn, "headphones");
+      headerBtn.addEventListener("click", (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        this.handleNoteAudioAction(view);
+      });
+      headerActions.prepend(headerBtn);
+    }
+
+    const isSynthesizing = this.activeSynthesizingPaths.has(file.path);
+    const audioFile = this.findExistingAudioForNote(file);
+
+    if (isSynthesizing) {
+      headerBtn.setAttribute("aria-label", "听笔记：正在生成语音...");
+      headerBtn.addClass("is-loading");
+    } else if (audioFile) {
+      headerBtn.setAttribute("aria-label", `听笔记：播放音频 (${audioFile.name})`);
+      headerBtn.removeClass("is-loading");
+    } else {
+      headerBtn.setAttribute("aria-label", "听笔记：生成整篇笔记语音");
+      headerBtn.removeClass("is-loading");
+    }
+  }
+
+  updateButtonState(btn: HTMLButtonElement, view: MarkdownView, file: TFile) {
+    const isSynthesizing = this.activeSynthesizingPaths.has(file.path);
+    const audioFile = !isSynthesizing ? this.findExistingAudioForNote(file) : null;
+
+    if (isSynthesizing) {
+      btn.className = "podvoice-inline-btn podvoice-btn-loading";
+      btn.innerHTML = `<span class="podvoice-spinner-mini"></span><span>正在朗读...</span>`;
+      btn.title = "正在生成当前笔记的语音，请稍候...";
+    } else if (audioFile) {
+      btn.className = "podvoice-inline-btn podvoice-btn-has-audio";
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>播放笔记</span>`;
+      btn.title = `播放已生成的本地音频 (${audioFile.name})。可在弹窗中倍速播放或重新生成。`;
+    } else {
+      btn.className = "podvoice-inline-btn podvoice-btn-ready";
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg><span>听笔记</span>`;
+      btn.title = "点击使用火山引擎生成整篇笔记的语音并播放";
+    }
+  }
+
+  async handleNoteAudioAction(view: MarkdownView) {
+    const file = view.file;
+    if (!file) {
+      new Notice("请先打开一篇笔记。");
       return;
     }
 
-    new Notice(`笔记「${file.basename}」尚未生成本地语音。可点击“生成当前笔记语音”进行合成。`);
+    if (this.activeSynthesizingPaths.has(file.path)) {
+      new Notice("正在为当前笔记生成语音，请稍候...");
+      return;
+    }
+
+    const existingAudio = this.findExistingAudioForNote(file);
+    if (existingAudio) {
+      new AudioResultModal(this.app, existingAudio, file, this).open();
+      return;
+    }
+
+    // 尚未生成语音，开始为当前笔记生成
+    await this.synthesize(view, "note", view.editor);
   }
 
   private async saveAudioFile(sourceFile: TFile, audio: AudioResult): Promise<TFile> {
@@ -1967,9 +2146,21 @@ class AudioResultModal extends Modal {
             await navigator.clipboard.writeText(`![[${this.file.path}]]`);
             new Notice("已复制 ![[...]] 语法。");
           })
+      )
+      .addButton((button) =>
+        button
+          .setButtonText("🔄 重新生成语音")
+          .setDisabled(!linkedNote || !this.plugin)
+          .onClick(async () => {
+            if (linkedNote && this.plugin) {
+              this.close();
+              await this.plugin.synthesizeFile(linkedNote);
+            }
+          })
       );
 
     audio.focus();
+    audio.play().catch(() => {});
   }
 
   onClose() {
