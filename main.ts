@@ -926,6 +926,7 @@ export default class NoteTtsPlugin extends Plugin {
       : (this.settings.volcengineVoiceType || "BV001_streaming");
 
     const token = this.settings.volcengineAccessToken.trim();
+    const rawToken = token.replace(/^Bearer[;\s]+/i, "");
     const authHeader = token.startsWith("Bearer") ? token : `Bearer;${token}`;
 
     const response = await requestUrlWithRetries({
@@ -933,12 +934,14 @@ export default class NoteTtsPlugin extends Plugin {
       method: "POST",
       headers: {
         Authorization: authHeader,
+        "X-Api-Key": rawToken,
+        "X-Api-App-Key": this.settings.volcengineAppId.trim(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         app: {
           appid: this.settings.volcengineAppId.trim(),
-          token: token.replace(/^Bearer[;\s]+/i, ""),
+          token: rawToken,
           cluster: this.settings.volcengineCluster?.trim() || "volcano_tts",
         },
         user: {
