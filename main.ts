@@ -571,7 +571,7 @@ export default class NoteTtsPlugin extends Plugin {
 
     this.addCommand({
       id: "synthesize-selection",
-      name: "Convert selected text to speech",
+      name: "听笔记：朗读选中文字",
       icon: NOTE_TTS_SELECTION_ICON,
       editorCallback: async (editor: Editor, view: MarkdownView) => {
         await this.synthesize(view, "selection", editor);
@@ -580,7 +580,7 @@ export default class NoteTtsPlugin extends Plugin {
 
     this.addCommand({
       id: "preview-cleaned-text",
-      name: "Preview cleaned text for speech",
+      name: "听笔记：预览清洗后的朗读文本",
       icon: NOTE_TTS_PREVIEW_ICON,
       editorCallback: async (editor: Editor, view: MarkdownView) => {
         const sourceText = await this.getTextForMode(view, editor.getSelection() ? "selection" : "note", editor);
@@ -590,7 +590,7 @@ export default class NoteTtsPlugin extends Plugin {
 
     this.addCommand({
       id: "check-pending-tts-tasks",
-      name: "Check pending speech tasks",
+      name: "听笔记：检查后台待处理任务",
       icon: NOTE_TTS_NOTE_ICON,
       callback: async () => {
         await this.checkPendingTasks();
@@ -601,7 +601,7 @@ export default class NoteTtsPlugin extends Plugin {
       this.app.workspace.on("editor-menu", (menu: Menu, editor: Editor, view: MarkdownView) => {
         menu.addItem((item) => {
           item
-            .setTitle("Convert current note to speech")
+            .setTitle("听笔记：朗读当前整篇笔记")
             .setIcon(NOTE_TTS_NOTE_ICON)
             .onClick(async () => {
               await this.synthesize(view, "note", editor);
@@ -609,7 +609,7 @@ export default class NoteTtsPlugin extends Plugin {
         });
         menu.addItem((item) => {
           item
-            .setTitle("Convert selected text to speech")
+            .setTitle("听笔记：朗读选中的文字")
             .setIcon(NOTE_TTS_SELECTION_ICON)
             .onClick(async () => {
               await this.synthesize(view, "selection", editor);
