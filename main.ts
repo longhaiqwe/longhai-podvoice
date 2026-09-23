@@ -19,15 +19,9 @@ type SettingsLanguage = "auto" | "zh" | "en";
 
 const REPLICATE_MINIMAX_MODEL = "minimax/speech-2.8-turbo";
 const REPLICATE_CUSTOM_VOICE = "custom";
-const NOTE_TTS_NOTE_ICON = "note-tts-note";
+const NOTE_TTS_NOTE_ICON = "headphones";
 const NOTE_TTS_SELECTION_ICON = "note-tts-selection";
 const NOTE_TTS_PREVIEW_ICON = "note-tts-preview";
-
-const NOTE_TTS_NOTE_ICON_SVG = `
-<rect x="16" y="10" width="46" height="80" rx="8" fill="none" stroke="currentColor" stroke-width="9"/>
-<path d="M29 34h20M29 52h16M29 70h13" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
-<path d="M68 38v40l28-20z" fill="currentColor"/>
-`;
 
 const NOTE_TTS_SELECTION_ICON_SVG = `
 <path d="M14 22h52" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
@@ -690,7 +684,6 @@ export default class NoteTtsPlugin extends Plugin {
   }
 
   private registerIcons() {
-    addIcon(NOTE_TTS_NOTE_ICON, NOTE_TTS_NOTE_ICON_SVG);
     addIcon(NOTE_TTS_SELECTION_ICON, NOTE_TTS_SELECTION_ICON_SVG);
     addIcon(NOTE_TTS_PREVIEW_ICON, NOTE_TTS_PREVIEW_ICON_SVG);
   }
