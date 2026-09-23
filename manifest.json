@@ -1,0 +1,10 @@
+{
+  "id": "note-tts",
+  "name": "Note TTS",
+  "version": "0.2.3",
+  "minAppVersion": "1.5.0",
+  "description": "Convert the current note or selected text to MP3 audio through user-configured TTS APIs.",
+  "author": "sourit2001",
+  "authorUrl": "https://github.com/sourit2001",
+  "isDesktopOnly": false
+}

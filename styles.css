@@ -1,0 +1,93 @@
+.note-tts-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-tts-status-modal {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.note-tts-spinner {
+  animation: note-tts-spin 0.9s linear infinite;
+  border: 3px solid var(--background-modifier-border);
+  border-top-color: var(--interactive-accent);
+  border-radius: 50%;
+  height: 34px;
+  width: 34px;
+}
+
+.note-tts-status-modal.has-error .note-tts-spinner {
+  animation: none;
+  border-color: var(--text-error);
+}
+
+.note-tts-status-text {
+  font-weight: 600;
+}
+
+.note-tts-status-detail {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  max-width: 360px;
+  overflow-wrap: anywhere;
+}
+
+.note-tts-preview-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-tts-preview-text {
+  font-family: var(--font-text);
+  height: min(58vh, 520px);
+  resize: vertical;
+  width: 100%;
+}
+
+.note-tts-draggable-modal {
+  user-select: none;
+}
+
+.note-tts-drag-handle {
+  cursor: grab;
+  margin-bottom: 2px;
+}
+
+.note-tts-drag-handle.is-dragging {
+  cursor: grabbing;
+}
+
+.note-tts-modal audio {
+  width: 100%;
+}
+
+.note-tts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.note-tts-path {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  overflow-wrap: anywhere;
+}
+
+.mobile-toolbar-options-list svg.svg-icon.note-tts-note,
+.mobile-toolbar-options-list svg.svg-icon.note-tts-selection,
+.mobile-toolbar-options-list svg.svg-icon.note-tts-preview {
+  height: 1.35em;
+  width: 1.35em;
+}
+
+@keyframes note-tts-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
