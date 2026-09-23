@@ -2099,7 +2099,7 @@ class NoteTtsSettingTab extends PluginSettingTab {
           })
       );
 
-    // 3. 当前选中 Provider 专属配置（紧接着在下方展示，无需滚动）
+    // 3. 当前选中 Provider 专属配置（紧贴在服务商选择下方展示，无需滚动）
     if (this.plugin.settings.provider === "volcengine") {
       this.displayVolcengineSettings(containerEl, t);
     } else if (this.plugin.settings.provider === "minimax") {
@@ -2110,14 +2110,14 @@ class NoteTtsSettingTab extends PluginSettingTab {
       this.displayCustomSettings(containerEl, t);
     }
 
-    // 4. 存储空间防膨胀管理
-    this.displayStorageSettings(containerEl, t);
+    // 4. 清除格式与文本清洗（紧贴在引擎配置下方）
+    this.displayTextCleanupSettings(containerEl, t);
 
     // 5. 笔记与音频双向关联
     this.displayAssociationSettings(containerEl, t);
 
-    // 6. 基础输出与文本清理
-    this.displayOutputAndCleanupSettings(containerEl, t);
+    // 6. 存储空间防膨胀管理
+    this.displayStorageSettings(containerEl, t);
   }
 
   private displayVolcengineSettings(containerEl: HTMLElement, t: (key: SettingsTextKey) => string) {
@@ -2251,6 +2251,19 @@ class NoteTtsSettingTab extends PluginSettingTab {
       .setName(t("storageHeading"))
       .setHeading();
 
+    new Setting(containerEl)
+      .setName(t("outputFolderName"))
+      .setDesc(t("outputFolderDesc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("TTS Audio")
+          .setValue(this.plugin.settings.outputFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.outputFolder = value || DEFAULT_SETTINGS.outputFolder;
+            await this.plugin.saveSettings();
+          })
+      );
+
     const storageStatsSetting = new Setting(containerEl)
       .setName("当前音频占用")
       .setDesc("正在计算...");
@@ -2381,47 +2394,10 @@ class NoteTtsSettingTab extends PluginSettingTab {
       );
   }
 
-  private displayOutputAndCleanupSettings(containerEl: HTMLElement, t: (key: SettingsTextKey) => string) {
+  private displayTextCleanupSettings(containerEl: HTMLElement, t: (key: SettingsTextKey) => string) {
     new Setting(containerEl)
-      .setName("输出与文本处理 (常规设置)")
+      .setName("清除格式与文本清洗")
       .setHeading();
-
-    new Setting(containerEl)
-      .setName(t("outputFolderName"))
-      .setDesc(t("outputFolderDesc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("TTS Audio")
-          .setValue(this.plugin.settings.outputFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.outputFolder = value || DEFAULT_SETTINGS.outputFolder;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName(t("maxCharactersName"))
-      .setDesc(t("maxCharactersDesc"))
-      .addText((text) =>
-        text
-          .setValue(String(this.plugin.settings.maxCharacters))
-          .onChange(async (value) => {
-            this.plugin.settings.maxCharacters = Number(value) || DEFAULT_SETTINGS.maxCharacters;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName(t("chunkCharactersName"))
-      .setDesc(t("chunkCharactersDesc"))
-      .addText((text) =>
-        text
-          .setValue(String(this.plugin.settings.chunkCharacters ?? DEFAULT_SETTINGS.chunkCharacters))
-          .onChange(async (value) => {
-            this.plugin.settings.chunkCharacters = Number(value) || 0;
-            await this.plugin.saveSettings();
-          })
-      );
 
     new Setting(containerEl)
       .setName(t("stripMarkdownName"))
@@ -2435,9 +2411,6 @@ class NoteTtsSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
-      .setName(t("textCleanupHeading"))
-      .setHeading();
     this.toggleSetting(containerEl, t("removeFrontmatterName"), t("removeFrontmatterDesc"), "removeFrontmatter");
     this.toggleSetting(containerEl, t("removeTagsName"), t("removeTagsDesc"), "removeTags");
     this.toggleSetting(containerEl, t("removeLinksName"), t("removeLinksDesc"), "removeLinks");
@@ -2486,6 +2459,34 @@ class NoteTtsSettingTab extends PluginSettingTab {
       t("addSpaceAfterPunctuationDesc"),
       "addSpaceAfterPunctuation"
     );
+
+    new Setting(containerEl)
+      .setName("文本长度限制 (分段规则)")
+      .setHeading();
+
+    new Setting(containerEl)
+      .setName(t("maxCharactersName"))
+      .setDesc(t("maxCharactersDesc"))
+      .addText((text) =>
+        text
+          .setValue(String(this.plugin.settings.maxCharacters))
+          .onChange(async (value) => {
+            this.plugin.settings.maxCharacters = Number(value) || DEFAULT_SETTINGS.maxCharacters;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("chunkCharactersName"))
+      .setDesc(t("chunkCharactersDesc"))
+      .addText((text) =>
+        text
+          .setValue(String(this.plugin.settings.chunkCharacters ?? DEFAULT_SETTINGS.chunkCharacters))
+          .onChange(async (value) => {
+            this.plugin.settings.chunkCharacters = Number(value) || 0;
+            await this.plugin.saveSettings();
+          })
+      );
   }
 
   private displayMiniMaxSettings(containerEl: HTMLElement, t: (key: SettingsTextKey) => string) {
