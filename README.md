@@ -49,15 +49,21 @@
 
 ## 🚀 快速上手与配置
 
-### 1. 安装插件
-插件已部署在你的 Obsidian 仓库插件目录下：
-```text
-<你的仓库>/.obsidian/plugins/longhai-podvoice/
-  ├── manifest.json
-  ├── main.js
-  └── styles.css
-```
-在 Obsidian 设置中进入「第三方插件」，启用 **Longhai PodVoice**。
+### 1. 安装方式
+
+* **方式 A（Obsidian 社区市场，官方上架后推荐）**：
+  打开 Obsidian ➔ 设置 ➔「第三方插件」➔「社区插件市场」➔ 搜索 `Longhai PodVoice` ➔ 点击安装并启用。
+* **方式 B（BRAT 测试版安装，手机与电脑通用）**：
+  安装并启用社区插件 **BRAT** ➔ 打开 BRAT 设置 ➔ 点击 `Add Beta plugin` ➔ 输入 GitHub 仓库地址 `longhaiqwe/longhai-podvoice` 即可自动拉取最新测试版。
+* **方式 C（手动安装）**：
+  从 GitHub Releases 下载最新的 `manifest.json`、`main.js`、`styles.css`，解压至你的仓库目录：
+  ```text
+  <你的仓库>/.obsidian/plugins/longhai-podvoice/
+    ├── manifest.json
+    ├── main.js
+    └── styles.css
+  ```
+  在 Obsidian 设置中进入「第三方插件」，启用 **Longhai PodVoice**。
 
 ### 2. 火山引擎凭证配置（墨问同款）
 1. 前往 [火山引擎控制台](https://console.volcengine.com/speech) 开通**语音技术 - 语音合成 (TTS)** 服务；
@@ -87,6 +93,16 @@
   - 或在左侧文件列表右键笔记，点击 `听笔记：播放该笔记关联语音`。
 * **为选中文本生成语音**：
   - 选中笔记中的部分文字，右键菜单点击 `Convert selected text to speech`。
+
+---
+
+## 🔒 网络服务与隐私声明 (Privacy Disclosure)
+
+本插件尊重并保护用户隐私，遵守 Obsidian 官方社区插件安全与隐私规范：
+
+1. **按需数据发送**：仅在用户主动触发语音生成或试听时，插件才会将当前笔记清洗后的文本通过 HTTPS 加密传输至用户配置的第三方语音合成服务接口（如字节跳动火山引擎 `openspeech.bytedance.com`）。
+2. **零隐私采集与跟踪**：本插件不包含任何统计代码、遥测（Telemetry）、跟踪器或第三方分析 SDK，不会收集任何用户身份信息或未主动选择的笔记内容。
+3. **本地凭证存储**：你的 App ID、API Key / Access Token 仅安全保存在本地仓库的 `.obsidian/plugins/longhai-podvoice/data.json` 中，绝不会上传至任何中转服务器。
 
 ---
 

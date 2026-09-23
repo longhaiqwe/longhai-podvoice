@@ -2422,7 +2422,10 @@ class NoteTtsSettingTab extends PluginSettingTab {
                 const blob = new Blob([res.data], { type: "audio/mpeg" });
                 const url = URL.createObjectURL(blob);
                 const a = new Audio(url);
-                a.play();
+                const cleanup = () => URL.revokeObjectURL(url);
+                a.addEventListener("ended", cleanup, { once: true });
+                a.addEventListener("error", cleanup, { once: true });
+                a.play().catch(cleanup);
               }
             } catch (err) {
               console.error(err);

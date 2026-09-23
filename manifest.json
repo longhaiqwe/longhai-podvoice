@@ -3,7 +3,8 @@
   "name": "Longhai PodVoice",
   "version": "1.0.0",
   "minAppVersion": "1.5.0",
-  "description": "Longhai PodVoice — 播客级有声笔记插件：将笔记转换为高品质语音（默认搭载墨问同款火山引擎豆包大模型语音），本地持久化保存、防膨胀覆盖更新并与笔记双向强关联，支持电脑与手机端。",
+  "description": "Podcast-grade note-to-speech with Volcengine Doubao TTS, local storage, and bi-directional note linking (播客级有声笔记插件，搭载火山引擎豆包语音).",
   "author": "龙海",
+  "authorUrl": "https://github.com/longhaiqwe",
   "isDesktopOnly": false
 }

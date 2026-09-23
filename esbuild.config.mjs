@@ -6,7 +6,7 @@ const prod = process.argv[2] === "production";
 
 const context = await esbuild.context({
   banner: {
-    js: "/* Note TTS Obsidian plugin */",
+    js: "/* Longhai PodVoice Obsidian plugin */",
   },
   entryPoints: ["main.ts"],
   bundle: true,
