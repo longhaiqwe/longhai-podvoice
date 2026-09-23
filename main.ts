@@ -327,8 +327,8 @@ type SettingsTextKey =
 const SETTINGS_TEXT: Record<"zh" | "en", Record<SettingsTextKey, string>> = {
   zh: {
     settingsLanguageName: "设置页语言",
-    settingsLanguageDesc: "选择此插件设置页使用的语言。Auto 默认显示英文，中文可手动选择。",
-    settingsLanguageAuto: "Auto（默认 English）",
+    settingsLanguageDesc: "选择设置页语言。Auto 模式会自动跟随 Obsidian 的语言设置（当前已识别为中文）。",
+    settingsLanguageAuto: "Auto (自动跟随软件语言)",
     settingsLanguageZh: "中文",
     settingsLanguageEn: "English",
     providerDesc: "选择用哪个 API 生成语音。",
@@ -424,8 +424,8 @@ const SETTINGS_TEXT: Record<"zh" | "en", Record<SettingsTextKey, string>> = {
   },
   en: {
     settingsLanguageName: "Settings language",
-    settingsLanguageDesc: "Choose the language used on this plugin settings page. Auto defaults to English; Chinese can be selected manually.",
-    settingsLanguageAuto: "Auto (English default)",
+    settingsLanguageDesc: "Choose settings language. Auto detects Obsidian's UI language.",
+    settingsLanguageAuto: "Auto (Follow Obsidian)",
     settingsLanguageZh: "Chinese",
     settingsLanguageEn: "English",
     providerDesc: "Choose which API provider generates speech.",
@@ -2064,6 +2064,7 @@ class NoteTtsSettingTab extends PluginSettingTab {
     const language = getSettingsDisplayLanguage(this.plugin.settings.settingsLanguage);
     const t = (key: SettingsTextKey) => SETTINGS_TEXT[language][key];
 
+    // 1. 设置页语言
     new Setting(containerEl)
       .setName(t("settingsLanguageName"))
       .setDesc(t("settingsLanguageDesc"))
@@ -2080,8 +2081,9 @@ class NoteTtsSettingTab extends PluginSettingTab {
           })
       );
 
-        new Setting(containerEl)
-      .setName("Provider")
+    // 2. Provider 选择
+    new Setting(containerEl)
+      .setName("语音服务商 (Provider)")
       .setDesc(t("providerDesc"))
       .addDropdown((dropdown) =>
         dropdown
@@ -2096,6 +2098,293 @@ class NoteTtsSettingTab extends PluginSettingTab {
             this.renderSettings();
           })
       );
+
+    // 3. 当前选中 Provider 专属配置（紧接着在下方展示，无需滚动）
+    if (this.plugin.settings.provider === "volcengine") {
+      this.displayVolcengineSettings(containerEl, t);
+    } else if (this.plugin.settings.provider === "minimax") {
+      this.displayMiniMaxSettings(containerEl, t);
+    } else if (this.plugin.settings.provider === "replicate") {
+      this.displayReplicateSettings(containerEl, t);
+    } else if (this.plugin.settings.provider === "custom") {
+      this.displayCustomSettings(containerEl, t);
+    }
+
+    // 4. 存储空间防膨胀管理
+    this.displayStorageSettings(containerEl, t);
+
+    // 5. 笔记与音频双向关联
+    this.displayAssociationSettings(containerEl, t);
+
+    // 6. 基础输出与文本清理
+    this.displayOutputAndCleanupSettings(containerEl, t);
+  }
+
+  private displayVolcengineSettings(containerEl: HTMLElement, t: (key: SettingsTextKey) => string) {
+    new Setting(containerEl)
+      .setName("火山引擎 (豆包语音合成配置)")
+      .setHeading();
+
+    new Setting(containerEl)
+      .setName("App ID")
+      .setDesc(t("volcengineAppIdDesc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("例如 1234567890")
+          .setValue(this.plugin.settings.volcengineAppId)
+          .onChange(async (value) => {
+            this.plugin.settings.volcengineAppId = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Access Token / API Key")
+      .setDesc(t("volcengineAccessTokenDesc"))
+      .addText((text) => {
+        text.inputEl.type = "password";
+        text
+          .setPlaceholder("Bearer token 或 Access Token")
+          .setValue(this.plugin.settings.volcengineAccessToken)
+          .onChange(async (value) => {
+            this.plugin.settings.volcengineAccessToken = value.trim();
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("Cluster ID")
+      .setDesc(t("volcengineClusterDesc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("volcano_tts")
+          .setValue(this.plugin.settings.volcengineCluster || "volcano_tts")
+          .onChange(async (value) => {
+            this.plugin.settings.volcengineCluster = value.trim() || "volcano_tts";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("音色选择 (Voice Type)")
+      .setDesc(t("volcengineVoiceDesc"))
+      .addDropdown((dropdown) => {
+        VOLCENGINE_VOICES.forEach((voice) => {
+          dropdown.addOption(voice.id, voice.name);
+        });
+        dropdown.setValue(this.plugin.settings.volcengineVoiceType || "BV001_streaming");
+        dropdown.onChange(async (value) => {
+          this.plugin.settings.volcengineVoiceType = value;
+          await this.plugin.saveSettings();
+          this.renderSettings();
+        });
+      });
+
+    if (this.plugin.settings.volcengineVoiceType === "custom") {
+      new Setting(containerEl)
+        .setName("自定义 Voice Type 代码")
+        .setDesc(t("volcengineCustomVoiceDesc"))
+        .addText((text) =>
+          text
+            .setPlaceholder("例如 BV001_streaming")
+            .setValue(this.plugin.settings.volcengineCustomVoiceType || "")
+            .onChange(async (value) => {
+              this.plugin.settings.volcengineCustomVoiceType = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    }
+
+    new Setting(containerEl)
+      .setName("语速倍率 (Speed)")
+      .setDesc(t("volcengineSpeedDesc"))
+      .addSlider((slider) =>
+        slider
+          .setLimits(0.5, 2.0, 0.1)
+          .setValue(this.plugin.settings.volcengineSpeed ?? 1.0)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.volcengineSpeed = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("testVolcengineButton"))
+      .setDesc(t("testVolcengineDesc"))
+      .addButton((button) =>
+        button
+          .setButtonText("▶ 试听测试语音")
+          .onClick(async () => {
+            if (!this.plugin.settings.volcengineAppId || !this.plugin.settings.volcengineAccessToken) {
+              new Notice("请先填写 App ID 和 Access Token。");
+              return;
+            }
+            button.setButtonText("正在请求...");
+            button.setDisabled(true);
+            try {
+              const res = await this.plugin.testVolcengineVoice();
+              button.setButtonText("测试成功 ✓");
+              new Notice("火山引擎语音合成成功！");
+              if (res.data) {
+                const blob = new Blob([res.data], { type: "audio/mpeg" });
+                const url = URL.createObjectURL(blob);
+                const a = new Audio(url);
+                a.play();
+              }
+            } catch (err) {
+              console.error(err);
+              new Notice(`测试失败: ${errorMessage(err)}`, 8000);
+              button.setButtonText("测试失败 ✗");
+            } finally {
+              setTimeout(() => {
+                button.setButtonText("▶ 试听测试语音");
+                button.setDisabled(false);
+              }, 3000);
+            }
+          })
+      );
+  }
+
+  private displayStorageSettings(containerEl: HTMLElement, t: (key: SettingsTextKey) => string) {
+    new Setting(containerEl)
+      .setName(t("storageHeading"))
+      .setHeading();
+
+    const storageStatsSetting = new Setting(containerEl)
+      .setName("当前音频占用")
+      .setDesc("正在计算...");
+
+    const refreshStorageDisplay = async () => {
+      const stats = await this.plugin.getStorageStats();
+      const mb = (stats.totalBytes / (1024 * 1024)).toFixed(2);
+      storageStatsSetting.setDesc(
+        `共 ${stats.count} 个音频文件，占用 ${mb} MB（其中 ${stats.orphanCount} 个为无对应笔记的孤立文件）。`
+      );
+    };
+    refreshStorageDisplay();
+
+    new Setting(containerEl)
+      .setName(t("keepOnlyLatestAudioName"))
+      .setDesc(t("keepOnlyLatestAudioDesc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.keepOnlyLatestAudio ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.keepOnlyLatestAudio = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("音频命名风格")
+      .setDesc("简洁模式直接使用 [笔记名].mp3，覆盖生成；时间戳模式在每次文件名后附加时间。")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("clean", "简洁覆盖模式 ([笔记名].mp3)")
+          .addOption("timestamp", "时间戳模式 ([笔记名]-时间.mp3)")
+          .setValue(this.plugin.settings.audioNamingMode || "clean")
+          .onChange(async (value: "clean" | "timestamp") => {
+            this.plugin.settings.audioNamingMode = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("cleanOrphansBtn"))
+      .setDesc("清理那些原 Markdown 笔记已经被删除的孤立音频文件，释放磁盘空间。")
+      .addButton((button) =>
+        button
+          .setButtonText("🧹 扫描并清理孤立音频")
+          .onClick(async () => {
+            button.setDisabled(true);
+            const count = await this.plugin.cleanOrphanAudios();
+            new Notice(`已清理 ${count} 个孤立音频文件。`);
+            await refreshStorageDisplay();
+            button.setDisabled(false);
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("clearAllAudiosBtn"))
+      .setDesc("一键清空 TTS Audio 目录下的所有音频文件（笔记文本完好无损，需要听时可随时重新生成）。")
+      .addButton((button) =>
+        button
+          .setButtonText("🗑️ 清空所有音频")
+          .setWarning()
+          .onClick(async () => {
+            if (confirm(t("clearAllConfirm"))) {
+              button.setDisabled(true);
+              const count = await this.plugin.clearAllAudios();
+              new Notice(`已清空 ${count} 个音频文件。`);
+              await refreshStorageDisplay();
+              button.setDisabled(false);
+            }
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("💡 避坑建议：排除 TTS Audio 避免索引")
+      .setDesc("建议前往 Obsidian「设置 ➔ 文件与链接 ➔ 已排除的文件」，将 TTS Audio 文件夹添加进去。这样 Obsidian 在启动、搜索和构建关系图谱时会完全跳过该目录，加载飞快！")
+      .addButton((button) =>
+        button
+          .setButtonText("我知道了")
+          .onClick(() => {
+            new Notice("建议在「文件与链接」设置中添加排除文件夹 TTS Audio。");
+          })
+      );
+  }
+
+  private displayAssociationSettings(containerEl: HTMLElement, t: (key: SettingsTextKey) => string) {
+    new Setting(containerEl)
+      .setName(t("noteAssociationHeading"))
+      .setHeading();
+
+    new Setting(containerEl)
+      .setName(t("associateNoteFrontmatterName"))
+      .setDesc(t("associateNoteFrontmatterDesc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.associateNoteFrontmatter ?? true)
+          .onChange(async (value) => {
+            this.plugin.settings.associateNoteFrontmatter = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("frontmatterKeyName"))
+      .setDesc(t("frontmatterKeyDesc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("audio")
+          .setValue(this.plugin.settings.frontmatterKey || "audio")
+          .onChange(async (value) => {
+            this.plugin.settings.frontmatterKey = value.trim() || "audio";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("autoEmbedInNoteName"))
+      .setDesc(t("autoEmbedInNoteDesc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("none", t("autoEmbedNone"))
+          .addOption("top", t("autoEmbedTop"))
+          .addOption("bottom", t("autoEmbedBottom"))
+          .setValue(this.plugin.settings.autoEmbedInNote || "none")
+          .onChange(async (value: "none" | "top" | "bottom") => {
+            this.plugin.settings.autoEmbedInNote = value;
+            await this.plugin.saveSettings();
+          })
+      );
+  }
+
+  private displayOutputAndCleanupSettings(containerEl: HTMLElement, t: (key: SettingsTextKey) => string) {
+    new Setting(containerEl)
+      .setName("输出与文本处理 (常规设置)")
+      .setHeading();
 
     new Setting(containerEl)
       .setName(t("outputFolderName"))
@@ -2197,275 +2486,6 @@ class NoteTtsSettingTab extends PluginSettingTab {
       t("addSpaceAfterPunctuationDesc"),
       "addSpaceAfterPunctuation"
     );
-
-
-    if (this.plugin.settings.provider === "volcengine") {
-      new Setting(containerEl)
-        .setName("火山引擎 (豆包语音合成配置)")
-        .setHeading();
-
-      new Setting(containerEl)
-        .setName("App ID")
-        .setDesc(t("volcengineAppIdDesc"))
-        .addText((text) =>
-          text
-            .setPlaceholder("例如 1234567890")
-            .setValue(this.plugin.settings.volcengineAppId)
-            .onChange(async (value) => {
-              this.plugin.settings.volcengineAppId = value.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-
-      new Setting(containerEl)
-        .setName("Access Token / API Key")
-        .setDesc(t("volcengineAccessTokenDesc"))
-        .addText((text) => {
-          text.inputEl.type = "password";
-          text
-            .setPlaceholder("Bearer token 或 Access Token")
-            .setValue(this.plugin.settings.volcengineAccessToken)
-            .onChange(async (value) => {
-              this.plugin.settings.volcengineAccessToken = value.trim();
-              await this.plugin.saveSettings();
-            });
-        });
-
-      new Setting(containerEl)
-        .setName("Cluster ID")
-        .setDesc(t("volcengineClusterDesc"))
-        .addText((text) =>
-          text
-            .setPlaceholder("volcano_tts")
-            .setValue(this.plugin.settings.volcengineCluster || "volcano_tts")
-            .onChange(async (value) => {
-              this.plugin.settings.volcengineCluster = value.trim() || "volcano_tts";
-              await this.plugin.saveSettings();
-            })
-        );
-
-      new Setting(containerEl)
-        .setName("音色选择 (Voice Type)")
-        .setDesc(t("volcengineVoiceDesc"))
-        .addDropdown((dropdown) => {
-          VOLCENGINE_VOICES.forEach((voice) => {
-            dropdown.addOption(voice.id, voice.name);
-          });
-          dropdown.setValue(this.plugin.settings.volcengineVoiceType || "BV001_streaming");
-          dropdown.onChange(async (value) => {
-            this.plugin.settings.volcengineVoiceType = value;
-            await this.plugin.saveSettings();
-            this.renderSettings();
-          });
-        });
-
-      if (this.plugin.settings.volcengineVoiceType === "custom") {
-        new Setting(containerEl)
-          .setName("自定义 Voice Type 代码")
-          .setDesc(t("volcengineCustomVoiceDesc"))
-          .addText((text) =>
-            text
-              .setPlaceholder("例如 BV001_streaming")
-              .setValue(this.plugin.settings.volcengineCustomVoiceType || "")
-              .onChange(async (value) => {
-                this.plugin.settings.volcengineCustomVoiceType = value.trim();
-                await this.plugin.saveSettings();
-              })
-          );
-      }
-
-      new Setting(containerEl)
-        .setName("语速倍率 (Speed)")
-        .setDesc(t("volcengineSpeedDesc"))
-        .addSlider((slider) =>
-          slider
-            .setLimits(0.5, 2.0, 0.1)
-            .setValue(this.plugin.settings.volcengineSpeed ?? 1.0)
-            .setDynamicTooltip()
-            .onChange(async (value) => {
-              this.plugin.settings.volcengineSpeed = value;
-              await this.plugin.saveSettings();
-            })
-        );
-
-      new Setting(containerEl)
-        .setName(t("testVolcengineButton"))
-        .setDesc(t("testVolcengineDesc"))
-        .addButton((button) =>
-          button
-            .setButtonText("▶ 试听测试语音")
-            .onClick(async () => {
-              if (!this.plugin.settings.volcengineAppId || !this.plugin.settings.volcengineAccessToken) {
-                new Notice("请先填写 App ID 和 Access Token。");
-                return;
-              }
-              button.setButtonText("正在请求...");
-              button.setDisabled(true);
-              try {
-                const res = await this.plugin.testVolcengineVoice();
-                button.setButtonText("测试成功 ✓");
-                new Notice("火山引擎语音合成成功！");
-                if (res.data) {
-                  const blob = new Blob([res.data], { type: "audio/mpeg" });
-                  const url = URL.createObjectURL(blob);
-                  const a = new Audio(url);
-                  a.play();
-                }
-              } catch (err) {
-                console.error(err);
-                new Notice(`测试失败: ${errorMessage(err)}`, 8000);
-                button.setButtonText("测试失败 ✗");
-              } finally {
-                setTimeout(() => {
-                  button.setButtonText("▶ 试听测试语音");
-                  button.setDisabled(false);
-                }, 3000);
-              }
-            })
-        );
-    }
-
-
-    // 存储空间管理专区
-    new Setting(containerEl)
-      .setName(t("storageHeading"))
-      .setHeading();
-
-    const storageStatsSetting = new Setting(containerEl)
-      .setName("当前音频占用")
-      .setDesc("正在计算...");
-
-    const refreshStorageDisplay = async () => {
-      const stats = await this.plugin.getStorageStats();
-      const mb = (stats.totalBytes / (1024 * 1024)).toFixed(2);
-      storageStatsSetting.setDesc(
-        `共 ${stats.count} 个音频文件，占用 ${mb} MB（其中 ${stats.orphanCount} 个为无对应笔记的孤立文件）。`
-      );
-    };
-    refreshStorageDisplay();
-
-    new Setting(containerEl)
-      .setName(t("keepOnlyLatestAudioName"))
-      .setDesc(t("keepOnlyLatestAudioDesc"))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.keepOnlyLatestAudio ?? true)
-          .onChange(async (value) => {
-            this.plugin.settings.keepOnlyLatestAudio = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("音频命名风格")
-      .setDesc("简洁模式直接使用 [笔记名].mp3，覆盖生成；时间戳模式在每次文件名后附加时间。")
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOption("clean", "简洁覆盖模式 ([笔记名].mp3)")
-          .addOption("timestamp", "时间戳模式 ([笔记名]-时间.mp3)")
-          .setValue(this.plugin.settings.audioNamingMode || "clean")
-          .onChange(async (value: "clean" | "timestamp") => {
-            this.plugin.settings.audioNamingMode = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName(t("cleanOrphansBtn"))
-      .setDesc("清理那些原 Markdown 笔记已经被删除的孤立音频文件，释放磁盘空间。")
-      .addButton((button) =>
-        button
-          .setButtonText("🧹 扫描并清理孤立音频")
-          .onClick(async () => {
-            button.setDisabled(true);
-            const count = await this.plugin.cleanOrphanAudios();
-            new Notice(`已清理 ${count} 个孤立音频文件。`);
-            await refreshStorageDisplay();
-            button.setDisabled(false);
-          })
-      );
-
-    new Setting(containerEl)
-      .setName(t("clearAllAudiosBtn"))
-      .setDesc("一键清空 TTS Audio 目录下的所有音频文件（笔记文本完好无损，需要听时可随时重新生成）。")
-      .addButton((button) =>
-        button
-          .setButtonText("🗑️ 清空所有音频")
-          .setWarning()
-          .onClick(async () => {
-            if (confirm(t("clearAllConfirm"))) {
-              button.setDisabled(true);
-              const count = await this.plugin.clearAllAudios();
-              new Notice(`已清空 ${count} 个音频文件。`);
-              await refreshStorageDisplay();
-              button.setDisabled(false);
-            }
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("💡 避坑建议：排除 TTS Audio 避免索引")
-      .setDesc("建议前往 Obsidian「设置 ➔ 文件与链接 ➔ 已排除的文件」，将 TTS Audio 文件夹添加进去。这样 Obsidian 在启动、搜索和构建关系图谱时会完全跳过该目录，加载飞快！")
-      .addButton((button) =>
-        button
-          .setButtonText("我知道了")
-          .onClick(() => {
-            new Notice("建议在「文件与链接」设置中添加排除文件夹 TTS Audio。");
-          })
-      );
-
-    // 笔记关联设置区块
-    new Setting(containerEl)
-      .setName(t("noteAssociationHeading"))
-      .setHeading();
-
-    new Setting(containerEl)
-      .setName(t("associateNoteFrontmatterName"))
-      .setDesc(t("associateNoteFrontmatterDesc"))
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.associateNoteFrontmatter ?? true)
-          .onChange(async (value) => {
-            this.plugin.settings.associateNoteFrontmatter = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName(t("frontmatterKeyName"))
-      .setDesc(t("frontmatterKeyDesc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("audio")
-          .setValue(this.plugin.settings.frontmatterKey || "audio")
-          .onChange(async (value) => {
-            this.plugin.settings.frontmatterKey = value.trim() || "audio";
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName(t("autoEmbedInNoteName"))
-      .setDesc(t("autoEmbedInNoteDesc"))
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOption("none", t("autoEmbedNone"))
-          .addOption("top", t("autoEmbedTop"))
-          .addOption("bottom", t("autoEmbedBottom"))
-          .setValue(this.plugin.settings.autoEmbedInNote || "none")
-          .onChange(async (value: "none" | "top" | "bottom") => {
-            this.plugin.settings.autoEmbedInNote = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    if (this.plugin.settings.provider === "minimax") {
-      this.displayMiniMaxSettings(containerEl, t);
-    } else if (this.plugin.settings.provider === "replicate") {
-      this.displayReplicateSettings(containerEl, t);
-    } else {
-      this.displayCustomSettings(containerEl, t);
-    }
   }
 
   private displayMiniMaxSettings(containerEl: HTMLElement, t: (key: SettingsTextKey) => string) {
