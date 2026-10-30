@@ -16,3 +16,7 @@ podvoice-models-*.zip
 __pycache__/
 *.py[cod]
 
+# 本地验证记录和隔离安装库不随插件源码发布。
+/audits/
+/test-vault/
+

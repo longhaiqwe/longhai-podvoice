@@ -11,10 +11,28 @@ import {
   Plugin,
   PluginSettingTab,
   requestUrl,
+  sanitizeHTMLToDom,
   Setting,
   TFile,
   TFolder,
 } from "obsidian";
+
+// Embedded at build time; community installs only main.js, manifest.json and styles.css.
+declare const PODVOICE_SPEECH_TIMING_SOURCE: string;
+
+interface ProviderTaskResponse {
+  task_id?: string; status_url?: string; status?: string; vault_path?: string;
+  audio_url?: string; m4a_bytes?: number; audio_bytes?: number; error?: string;
+}
+interface ReplicatePrediction {
+  urls?: { get?: string }; status?: string; error?: string; output?: unknown;
+}
+interface StoredPluginData extends Partial<NoteTtsSettings> {
+  gptsovitsPreferredPresets?: unknown;
+  batchPauseState?: { resumeAt: number | null; folderPath: string };
+  pendingTasks?: PendingTtsTask[];
+  noteContentHashes?: Record<string, string>;
+}
 
 type ProviderId = "volcengine" | "minimax" | "replicate" | "gptsovits" | "custom";
 type SettingsLanguage = "auto" | "zh" | "en";
@@ -976,7 +994,7 @@ export default class NoteTtsPlugin extends Plugin {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile || !activeFile.parent) return false;
         if (checking) return true;
-        this.syncFolderAudio(activeFile.parent, false);
+        void this.syncFolderAudio(activeFile.parent, false).catch(error => new Notice(errorMessage(error)));
         return true;
       },
     });
@@ -1089,7 +1107,7 @@ export default class NoteTtsPlugin extends Plugin {
   }
 
   async loadSettings() {
-    const data = await this.loadData();
+    const data = await this.loadData() as StoredPluginData | null;
     // Retire per-speaker experimental version preferences while preserving other settings.
     const { gptsovitsPreferredPresets: _retiredPreferences, ...savedSettings } = data || {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, savedSettings);
@@ -1182,8 +1200,7 @@ export default class NoteTtsPlugin extends Plugin {
 
     const targetTime = (this.settings.batchScheduleTime || "00:00").trim();
     if (currentHourMin === targetTime) {
-      console.log(`[Longhai PodVoice] 定时到达 ${targetTime}，触发自动增量同步...`);
-      this.syncFolderAudio(this.settings.batchSyncFolder, true);
+      void this.syncFolderAudio(this.settings.batchSyncFolder, true).catch(error => new Notice(errorMessage(error)));
     }
   }
 
@@ -1210,8 +1227,7 @@ export default class NoteTtsPlugin extends Plugin {
 
     // 如果当前时间已经过了今天的设定时间点，说明休眠或关机错过了今日的定时
     if (now.getTime() >= targetDate.getTime()) {
-      console.log(`[Longhai PodVoice] 检测到错过了今日 ${this.settings.batchScheduleTime} 定时，执行唤醒静默增量补跑...`);
-      this.syncFolderAudio(this.settings.batchSyncFolder, true);
+      void this.syncFolderAudio(this.settings.batchSyncFolder, true).catch(error => new Notice(errorMessage(error)));
     }
   }
 
@@ -1450,7 +1466,7 @@ export default class NoteTtsPlugin extends Plugin {
             this.updateStatusBar(`🎧 听笔记 (${currentIdx}/${total}) [${status}]: ${item.file.basename.slice(0, 10)}`);
           });
           successCount++;
-        } catch (err: any) {
+        } catch (err: unknown) {
           if (this.unloading) return;
           if (err instanceof BatchSupersededError) {
             supersededCount++;
@@ -1458,7 +1474,7 @@ export default class NoteTtsPlugin extends Plugin {
             pendingCount++;
           } else {
             console.error(`批量生成「${item.file.basename}」失败:`, err);
-            failedList.push({ title: item.file.basename, err: err?.message || String(err) });
+            failedList.push({ title: item.file.basename, err: errorMessage(err) });
           }
         }
 
@@ -1660,7 +1676,7 @@ export default class NoteTtsPlugin extends Plugin {
   private getNoteTitle(file?: TFile | null, rawText?: string): string {
     if (file) {
       const cache = this.app.metadataCache.getFileCache(file);
-      const fmTitle = cache?.frontmatter?.title;
+      const fmTitle: unknown = cache?.frontmatter?.title;
       if (typeof fmTitle === "string" && fmTitle.trim()) {
         return fmTitle.trim();
       }
@@ -1730,7 +1746,7 @@ export default class NoteTtsPlugin extends Plugin {
           .replace(/^\s*\d+\.\s+/, "")
           .replace(/\*\*([^*]+)\*\*/g, "$1")
           .replace(/[*_~`]/g, "")
-          .replace(/[。！？，；：、.!?,;:"'“”‘’（）()\[\]【】《》〈〉\s]/g, "")
+          .replace(/[。！？，；：、.!?,;:"'“”‘’（）()[\]【】《》〈〉\s]/g, "")
           .toLowerCase();
 
       const normalizedFirstLine = normalizeForCompare(firstLine);
@@ -1930,7 +1946,7 @@ export default class NoteTtsPlugin extends Plugin {
       try {
         const body = renderJsonTemplate(provider === "custom" ? s.customBodyTemplate : s.replicateInputTemplate, "");
         const model = body?.model;
-        const voice = body?.voice_id || body?.voice_setting?.voice_id || body?.voice;
+        const voice = body.voice_id || getByPath(body, "voice_setting.voice_id") || body.voice;
         if (provider === "custom" && typeof model === "string") log.model = model;
         if (typeof voice === "string") log.voiceId = log.voiceName = voice;
       } catch { /* Keep unknown metadata; the actual request will report invalid templates. */ }
@@ -1944,7 +1960,7 @@ export default class NoteTtsPlugin extends Plugin {
     const secrets = [settings.volcengineAppId, settings.volcengineAccessToken,
       settings.minimaxApiKey, settings.replicateApiToken];
     try {
-      const headers = JSON.parse(settings.customHeaders || "{}");
+      const headers = JSON.parse(settings.customHeaders || "{}") as Record<string, unknown>;
       for (const value of Object.values(headers)) {
         if (typeof value === "string") secrets.push(value, value.replace(/^Bearer\s+/i, ""));
       }
@@ -2268,8 +2284,9 @@ export default class NoteTtsPlugin extends Plugin {
         };
       }
 
-      if (response.json?.message) {
-        throw new Error(response.json.message);
+      const message: unknown = (response.json as { message?: unknown } | null)?.message;
+      if (typeof message === "string" && message) {
+        throw new Error(message);
       }
       throw new Error("服务端未返回有效的音频数据。");
     } catch (error) {
@@ -2380,7 +2397,7 @@ export default class NoteTtsPlugin extends Plugin {
       errorPrefix: "火山引擎语音合成请求失败",
     });
 
-    const payload = response.json;
+    const payload = response.json as { code?: number; message?: string; data?: string };
     if (!payload) {
       throw new Error("火山引擎未返回有效的 JSON 数据。");
     }
@@ -2456,7 +2473,7 @@ export default class NoteTtsPlugin extends Plugin {
       }),
     });
 
-    const payload = response.json;
+    const payload = response.json as { base_resp?: { status_code?: number; status_msg?: string }; data?: { audio?: string } };
     if (payload?.base_resp?.status_code !== 0) {
       throw new Error(payload?.base_resp?.status_msg || "MiniMax 返回了错误。");
     }
@@ -2584,7 +2601,7 @@ export default class NoteTtsPlugin extends Plugin {
     return "https://api.replicate.com/v1/predictions";
   }
 
-  private async pollReplicatePrediction(prediction: any, status?: TtsStatusModal, settings = this.settings) {
+  private async pollReplicatePrediction(prediction: ReplicatePrediction, status?: TtsStatusModal, settings = this.settings) {
     const getUrl = prediction?.urls?.get;
     if (!getUrl) {
       return prediction;
@@ -2614,7 +2631,7 @@ export default class NoteTtsPlugin extends Plugin {
 
   private async requestReplicateJson(options: Parameters<typeof requestUrl>[0]) {
     try {
-      return (await requestUrl(options)).json;
+      return (await requestUrl(options)).json as ReplicatePrediction;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const body = (error as { response?: { json?: unknown; text?: string } })?.response;
@@ -2652,7 +2669,7 @@ export default class NoteTtsPlugin extends Plugin {
   }
 
   private async requestCustomProviderAudio(text: string, status?: TtsStatusModal, sourceFile?: TFile, generationLog?: GenerationLog, settings = { ...this.settings }): Promise<AudioResult> {
-    const headers = renderJsonTemplate(settings.customHeaders || "{}", text);
+    const headers = renderHeaderTemplate(settings.customHeaders || "{}", text);
     const body = settings.customBodyTemplate
       ? JSON.stringify({
           ...renderJsonTemplate(settings.customBodyTemplate, text),
@@ -2685,7 +2702,7 @@ export default class NoteTtsPlugin extends Plugin {
       };
     }
 
-    const payload = response.json;
+    const payload = response.json as ProviderTaskResponse;
     if (payload?.task_id || payload?.status_url) {
       return this.pollCustomProviderTask(payload, headers, status, sourceFile, text.length, generationLog);
     }
@@ -2717,7 +2734,7 @@ export default class NoteTtsPlugin extends Plugin {
   }
 
   private async pollCustomProviderTask(
-    payload: any,
+    payload: ProviderTaskResponse,
     headers: Record<string, string>,
     status?: TtsStatusModal,
     sourceFile?: TFile,
@@ -2737,7 +2754,7 @@ export default class NoteTtsPlugin extends Plugin {
       status?.setStatus(`Mac mini 正在生成语音... ${attempt + 1}`);
       await sleep(5000);
 
-      let task: any;
+      let task: ProviderTaskResponse;
       try {
         const response = await requestUrlWithRetries(
           {
@@ -2748,7 +2765,7 @@ export default class NoteTtsPlugin extends Plugin {
           { attempts: 2, baseDelayMs: 1200 }
         );
         transientFailures = 0;
-        task = response.json;
+        task = response.json as ProviderTaskResponse;
       } catch (error) {
         transientFailures += 1;
         if (transientFailures >= 120) {
@@ -2797,7 +2814,7 @@ export default class NoteTtsPlugin extends Plugin {
   }
 
   private async rememberPendingTask(
-    payload: any,
+    payload: ProviderTaskResponse,
     headers: Record<string, string>,
     sourceFile: TFile,
     statusUrl: string,
@@ -2857,7 +2874,7 @@ export default class NoteTtsPlugin extends Plugin {
           },
           { attempts: 4, baseDelayMs: 1500, errorPrefix: "检查语音任务失败" }
         );
-        const payload = response.json;
+        const payload = response.json as ProviderTaskResponse;
         if (payload?.status === "failed") {
           await this.updatePendingGenerationLog(task, "failed", undefined, payload?.error || "后台任务失败");
           this.removePendingTask(task.id);
@@ -3085,7 +3102,7 @@ export default class NoteTtsPlugin extends Plugin {
 
   findExistingAudioForNote(file: TFile): TFile | null {
     const folder = normalizeFolder(this.settings.outputFolder);
-    const cleanBasename = file.basename.replace(/[\/:*?"<>|#^[\]]/g, "-").slice(0, 80);
+    const cleanBasename = file.basename.replace(/[/:*?"<>|#^[\]]/g, "-").slice(0, 80);
     const extensions = ["mp3", "m4a", "wav"];
 
     // 0. 最优先且最直接：检查标准路径下的音频文件（如 TTS Audio/笔记名.mp3）
@@ -3102,7 +3119,7 @@ export default class NoteTtsPlugin extends Plugin {
     // 1. 尝试从笔记 frontmatter 读取
     const cache = this.app.metadataCache.getFileCache(file);
     const fmKey = this.settings.frontmatterKey?.trim() || "audio";
-    let rawFm = cache?.frontmatter?.[fmKey];
+    let rawFm: unknown = cache?.frontmatter?.[fmKey];
     if (rawFm === undefined && cache?.frontmatter) {
       // 容错：不区分大小写检索属性名（如 Audio、tts_audio、audio）
       const lowerKey = fmKey.toLowerCase();
@@ -3137,7 +3154,7 @@ export default class NoteTtsPlugin extends Plugin {
       s = s.replace(/^["']|["']$/g, "").trim();
       try {
         s = decodeURIComponent(s);
-      } catch (_) {}
+      } catch { /* Keep the original value when decoding or cleanup is unavailable. */ }
       targetPath = s;
     }
 
@@ -3163,7 +3180,7 @@ export default class NoteTtsPlugin extends Plugin {
         if (link && /\.(mp3|m4a|wav)$/i.test(link)) {
           try {
             link = decodeURIComponent(link);
-          } catch (_) {}
+          } catch { /* Keep the original value when decoding or cleanup is unavailable. */ }
           const dest =
             this.app.metadataCache.getFirstLinkpathDest(link, file.path) ||
             this.app.vault.getAbstractFileByPath(link) ||
@@ -3271,19 +3288,19 @@ export default class NoteTtsPlugin extends Plugin {
     }
 
     // 优先挂载在 .inline-title 正下方
-    const titleEl = view.containerEl.querySelector(".inline-title") as HTMLElement | null;
+    const titleEl = view.containerEl.querySelector<HTMLElement>(".inline-title");
     const parentContainer =
       titleEl?.parentElement ||
-      (view.containerEl.querySelector(".cm-sizer") as HTMLElement | null) ||
-      (view.containerEl.querySelector(".markdown-preview-sizer") as HTMLElement | null) ||
-      (view.containerEl.querySelector(".markdown-rendered") as HTMLElement | null);
+      (view.containerEl.querySelector<HTMLElement>(".cm-sizer")) ||
+      (view.containerEl.querySelector<HTMLElement>(".markdown-preview-sizer")) ||
+      (view.containerEl.querySelector<HTMLElement>(".markdown-rendered"));
 
     if (!parentContainer) return;
 
     const targetAudioPath = audioFile?.path || "";
     const targetState = isSynthesizing ? "loading" : "ready";
 
-    let card = parentContainer.querySelector(":scope > .podvoice-podcast-card") as HTMLElement | null;
+    let card = parentContainer.querySelector<HTMLElement>(":scope > .podvoice-podcast-card");
     if (card) {
       const currentAudioPath = card.dataset.audioPath || "";
       const currentState = card.dataset.state || "";
@@ -3378,10 +3395,10 @@ export default class NoteTtsPlugin extends Plugin {
         attr: { "aria-label": "重新生成语音", title: "重新生成语音" },
       });
       setIcon(regenBtn, "rotate-cw");
-      regenBtn.addEventListener("click", async (e) => {
+      regenBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        await this.synthesize(view, "note", view.editor, true);
+        void this.synthesize(view, "note", view.editor, true).catch(error => new Notice(errorMessage(error)));
       });
     }
   }
@@ -3408,12 +3425,12 @@ export default class NoteTtsPlugin extends Plugin {
           btn = document.createElement("button");
           btn.type = "button";
           btn.className = `podvoice-mowen-pill pos-${pos}`;
-          btn.innerHTML = `<span class="podvoice-mowen-icon-wrap">${MOWEN_LISTEN_ICON_SVG}</span><span class="podvoice-mowen-text">听全文</span>`;
+          btn.appendChild(sanitizeHTMLToDom(`<span class="podvoice-mowen-icon-wrap">${MOWEN_LISTEN_ICON_SVG}</span><span class="podvoice-mowen-text">听全文</span>`));
 
-          btn.addEventListener("click", async (evt) => {
+          btn.addEventListener("click", (evt) => {
             evt.preventDefault();
             evt.stopPropagation();
-            await this.handleNoteAudioAction(view, evt);
+            void this.handleNoteAudioAction(view, evt).catch(error => new Notice(errorMessage(error)));
           });
 
           btn.addEventListener("contextmenu", (evt) => {
@@ -3444,22 +3461,22 @@ export default class NoteTtsPlugin extends Plugin {
     } else {
       // 容错兜底：未开启 Obsidian 内联标题时，挂载在正文容器顶部
       const contentContainer =
-        (view.containerEl.querySelector(".cm-sizer") as HTMLElement | null) ||
-        (view.containerEl.querySelector(".markdown-preview-sizer") as HTMLElement | null) ||
-        (view.containerEl.querySelector(".markdown-rendered") as HTMLElement | null);
+        (view.containerEl.querySelector<HTMLElement>(".cm-sizer")) ||
+        (view.containerEl.querySelector<HTMLElement>(".markdown-preview-sizer")) ||
+        (view.containerEl.querySelector<HTMLElement>(".markdown-rendered"));
 
       if (contentContainer) {
-        let btn = contentContainer.querySelector(":scope > .podvoice-mowen-pill") as HTMLButtonElement | null;
+        let btn = contentContainer.querySelector<HTMLButtonElement>(":scope > .podvoice-mowen-pill");
         if (!btn) {
           btn = document.createElement("button");
           btn.type = "button";
           btn.className = `podvoice-mowen-pill pos-fallback pos-${pos}`;
-          btn.innerHTML = `<span class="podvoice-mowen-icon-wrap">${MOWEN_LISTEN_ICON_SVG}</span><span class="podvoice-mowen-text">听全文</span>`;
+          btn.appendChild(sanitizeHTMLToDom(`<span class="podvoice-mowen-icon-wrap">${MOWEN_LISTEN_ICON_SVG}</span><span class="podvoice-mowen-text">听全文</span>`));
 
-          btn.addEventListener("click", async (evt) => {
+          btn.addEventListener("click", (evt) => {
             evt.preventDefault();
             evt.stopPropagation();
-            await this.handleNoteAudioAction(view, evt);
+            void this.handleNoteAudioAction(view, evt).catch(error => new Notice(errorMessage(error)));
           });
 
           btn.addEventListener("contextmenu", (evt) => {
@@ -3482,7 +3499,7 @@ export default class NoteTtsPlugin extends Plugin {
     const headerActions = view.containerEl.querySelector(".view-header-actions");
     if (!headerActions) return;
 
-    let headerBtn = headerActions.querySelector(".podvoice-header-btn") as HTMLElement | null;
+    let headerBtn = headerActions.querySelector<HTMLElement>(".podvoice-header-btn");
     if (!headerBtn) {
       headerBtn = document.createElement("div");
       headerBtn.className = "clickable-icon view-action podvoice-header-btn";
@@ -3490,7 +3507,7 @@ export default class NoteTtsPlugin extends Plugin {
       headerBtn.addEventListener("click", (evt) => {
         evt.preventDefault();
         evt.stopPropagation();
-        this.handleNoteAudioAction(view, evt);
+        void this.handleNoteAudioAction(view, evt).catch(error => new Notice(errorMessage(error)));
       });
       headerActions.prepend(headerBtn);
     }
@@ -3529,7 +3546,7 @@ export default class NoteTtsPlugin extends Plugin {
       if (textEl) textEl.textContent = "听全文";
 
       // 联动播放状态
-      const audioEl = view.containerEl.querySelector(".podvoice-card-audio") as HTMLAudioElement | null;
+      const audioEl = view.containerEl.querySelector<HTMLAudioElement>(".podvoice-card-audio");
       if (audioEl && !audioEl.paused) {
         btn.addClass("is-playing");
       }
@@ -3546,7 +3563,7 @@ export default class NoteTtsPlugin extends Plugin {
           btn.setAttribute("aria-label", `听全文：已生成语音，点击播放 (${audioFile.name})`);
           btn.title = `听全文：已生成语音，点击播放 (${audioFile.name})`;
         }
-      });
+      }).catch(error => console.warn("读取笔记音频状态失败", error));
     } else {
       btn.addClass("is-ready");
       if (textEl) textEl.textContent = "听全文";
@@ -3584,7 +3601,7 @@ export default class NoteTtsPlugin extends Plugin {
     if (!modified) {
       // 文章未修改：直接播放现有音频，避免重复生成
       new Notice(`▶️ 全文语音已就绪，正在播放「${file.basename}」`);
-      this.playAudioFileInView(view, file, existingAudio);
+      void this.playAudioFileInView(view, file, existingAudio).catch(error => new Notice(errorMessage(error)));
       return;
     }
 
@@ -3595,7 +3612,7 @@ export default class NoteTtsPlugin extends Plugin {
         .setTitle("▶️ 播放现存音频 (文章有更新)")
         .setIcon("play")
         .onClick(() => {
-          this.playAudioFileInView(view, file, existingAudio);
+          void this.playAudioFileInView(view, file, existingAudio).catch(error => new Notice(errorMessage(error)));
         });
     });
     menu.addItem((item) => {
@@ -3610,7 +3627,7 @@ export default class NoteTtsPlugin extends Plugin {
     if (evt) {
       menu.showAtMouseEvent(evt);
     } else {
-      const btn = view.containerEl.querySelector(".podvoice-mowen-pill") as HTMLElement | null;
+      const btn = view.containerEl.querySelector<HTMLElement>(".podvoice-mowen-pill");
       if (btn) {
         const rect = btn.getBoundingClientRect();
         menu.showAtPosition({ x: rect.left, y: rect.bottom + 4 });
@@ -3626,10 +3643,10 @@ export default class NoteTtsPlugin extends Plugin {
       return;
     }
 
-    let audioEl = view.containerEl.querySelector(".podvoice-card-audio") as HTMLAudioElement | null;
+    let audioEl = view.containerEl.querySelector<HTMLAudioElement>(".podvoice-card-audio");
     if (!audioEl && this.settings.showPodcastCard !== false) {
       this.mountPodcastCard(view);
-      audioEl = view.containerEl.querySelector(".podvoice-card-audio") as HTMLAudioElement | null;
+      audioEl = view.containerEl.querySelector<HTMLAudioElement>(".podvoice-card-audio");
     }
 
     if (audioEl) {
@@ -3767,7 +3784,7 @@ export default class NoteTtsPlugin extends Plugin {
           .setTitle("▶️ 播放当前音频")
           .setIcon("play")
           .onClick(() => {
-            this.playAudioFileInView(view, file, audioFile);
+            void this.playAudioFileInView(view, file, audioFile).catch(error => new Notice(errorMessage(error)));
           });
       });
     }
@@ -3829,14 +3846,17 @@ export default class NoteTtsPlugin extends Plugin {
     const digest = await audioDigest(await this.app.vault.readBinary(audioFile));
     const cachePath = audioFile.path + ".podvoice-timing.json";
     try {
-      const cached = JSON.parse(await this.app.vault.adapter.read(cachePath));
+      const cached: unknown = JSON.parse(await this.app.vault.adapter.read(cachePath));
       if (isSpeechTiming(cached, digest)) return cached;
     } catch { /* Missing, interrupted or obsolete caches are regenerated. */ }
     const adapter = this.app.vault.adapter as typeof this.app.vault.adapter & { getBasePath?: () => string };
     if (typeof adapter.getBasePath !== "function") throw new Error("此设备只能使用已同步的语音时间戳，请先在桌面端打开音频完成对齐。");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Load optional desktop APIs only when this feature runs.
     const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Load optional desktop APIs only when this feature runs.
     const path = require("path") as typeof import("path");
-    const home = require("os").homedir() as string;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Load optional desktop APIs only when this feature runs.
+    const home = (require("os") as typeof import("os")).homedir();
     const candidates = ["/opt/homebrew/bin/node", "/usr/local/bin/node", "/usr/bin/node"];
     for (const base of [path.join(home, ".local/share/fnm/node-versions"), path.join(home, ".nvm/versions/node")]) {
       if (fs.existsSync(base)) for (const name of fs.readdirSync(base).sort().reverse()) {
@@ -3846,22 +3866,26 @@ export default class NoteTtsPlugin extends Plugin {
     for (const bin of (process.env.PATH || "").split(path.delimiter)) if (bin) candidates.push(path.join(bin, process.platform === "win32" ? "node.exe" : "node"));
     const node = candidates.find(candidate => fs.existsSync(candidate));
     const root = adapter.getBasePath();
-    const script = path.join(root, this.manifest.dir || `${this.app.vault.configDir}/plugins/${this.manifest.id}`, "speech-timing.cjs");
-    if (!node || !fs.existsSync(script)) throw new Error("缺少 Node.js 或离线对齐脚本，请完整安装插件的对齐组件。");
+    const pluginDir = path.join(root, this.manifest.dir || `${this.app.vault.configDir}/plugins/${this.manifest.id}`);
+    if (!node) throw new Error("缺少 Node.js，请先安装离线对齐运行环境。");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Load optional desktop APIs only when this feature runs.
     const { execFile } = require("child_process") as typeof import("child_process");
     if (this.unloading) throw new Error("插件已关闭。");
     const timing = await new Promise<SpeechTiming>((resolve, reject) => {
-      const child = execFile(node, [script, path.join(root, audioFile.path)],
-        { timeout: 20 * 60 * 1000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout, stderr) => {
+      const child = execFile(node, ["-", path.join(root, audioFile.path)],
+        { cwd: pluginDir, timeout: 20 * 60 * 1000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout, stderr) => {
           this.speechTimingProcesses.delete(child);
           if (error) { reject(new Error(stderr.trim().split("\n").slice(-1)[0] || "离线语音对齐失败。")); return; }
           try {
-            const parsed = JSON.parse(stdout);
+            const parsed: unknown = JSON.parse(stdout);
             if (!isSpeechTiming(parsed, digest)) throw new Error("语音时间戳无效或音频已更新。");
             resolve(parsed);
-          } catch (e) { reject(e); }
+          } catch (e) { reject(e instanceof Error ? e : new Error(String(e))); }
         });
       this.speechTimingProcesses.add(child);
+      // Send only the worker bundled in this release, never downloaded executable code.
+      child.stdin?.on("error", () => { /* execFile reports process failures above. */ });
+      child.stdin?.end(PODVOICE_SPEECH_TIMING_SOURCE);
     });
     if (this.unloading || digest !== await audioDigest(await this.app.vault.readBinary(audioFile))) {
       throw new Error("分析期间音频已更新，请重新打开播放器。");
@@ -3894,7 +3918,7 @@ export default class NoteTtsPlugin extends Plugin {
     const folder = normalizeFolder(settings.outputFolder);
     await ensureFolder(this.app, folder);
 
-    const basename = sourceFile.basename.replace(/[\/:*?"<>|#^[\]]/g, "-").slice(0, 80);
+    const basename = sourceFile.basename.replace(/[/:*?"<>|#^[\]]/g, "-").slice(0, 80);
     const ext = audio.extension || "mp3";
 
     let targetPath = "";
@@ -3938,7 +3962,7 @@ export default class NoteTtsPlugin extends Plugin {
       try {
         await this.app.fileManager.processFrontMatter(sourceFile, (fm) => {
           const key = settings.frontmatterKey?.trim() || "audio";
-          fm[key] = `[[${targetPath}]]`;
+          (fm as Record<string, unknown>)[key] = `[[${targetPath}]]`;
         });
       } catch (err) {
         console.warn("写入 Frontmatter 失败:", err);
@@ -4188,16 +4212,22 @@ interface SpeechTiming {
   tokens: SpeechToken[];
 }
 
-function isSpeechTiming(value: any, audioSha256: string): value is SpeechTiming {
-  if (!value || value.version !== 1 || value.engine !== "sensevoice" ||
+function isSpeechTiming(input: unknown, audioSha256: string): input is SpeechTiming {
+  if (!input || typeof input !== "object") return false;
+  const value = input as Record<string, unknown>;
+  const duration = value.duration;
+  if (value.version !== 1 || value.engine !== "sensevoice" ||
     value.audioSha256 !== audioSha256 || !/^[a-f0-9]{64}$/.test(audioSha256) ||
-    !Number.isFinite(value.duration) || value.duration <= 0 || value.duration > 7200 ||
+    typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0 || duration > 7200 ||
     !Array.isArray(value.tokens) || !value.tokens.length || value.tokens.length > 200000) return false;
   let previous = -1;
-  return value.tokens.every((token: SpeechToken) => {
-    if (!token || typeof token.text !== "string" || !token.text.length || token.text.length > 200 ||
+  return value.tokens.every((input: unknown) => {
+    if (!input || typeof input !== "object") return false;
+    const token = input as Record<string, unknown>;
+    if (typeof token.text !== "string" || !token.text.length || token.text.length > 200 ||
+      typeof token.start !== "number" || typeof token.end !== "number" ||
       !Number.isFinite(token.start) || !Number.isFinite(token.end) || token.start < 0 ||
-      token.start < previous || token.end <= token.start || token.end > value.duration + .001) return false;
+      token.start < previous || token.end <= token.start || token.end > duration + .001) return false;
     previous = token.start;
     return true;
   });
@@ -4208,7 +4238,8 @@ async function audioDigest(data: ArrayBuffer): Promise<string> {
     const hash = await globalThis.crypto.subtle.digest("SHA-256", data);
     return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
   }
-  return require("crypto").createHash("sha256").update(new Uint8Array(data)).digest("hex");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Load optional desktop APIs only when this feature runs.
+  return (require("crypto") as typeof import("crypto")).createHash("sha256").update(new Uint8Array(data)).digest("hex");
 }
 
 function normalizeSpeechText(text: string): string {
@@ -4229,6 +4260,7 @@ function normalizeSpeechText(text: string): string {
 // Monotonic text matching only copies timestamps from recognized audio tokens.
 // It never interpolates a missing sentence from character counts or duration.
 function alignSentencesToSpeech(sentences: NoteSentence[], tokens: SpeechToken[], spokenText: (s: NoteSentence) => string): number {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Defer the bundled diff helper until alignment runs.
   const { diffChars } = require("diff") as typeof import("diff");
   const texts = sentences.map(s => normalizeSpeechText(spokenText(s)));
   const source = texts.join("");
@@ -4263,7 +4295,7 @@ function alignSentencesToSpeech(sentences: NoteSentence[], tokens: SpeechToken[]
       (length > 5 || indices.length === length);
     sentence.startTime = -1; sentence.endTime = -1; sentence.timingSource = "unmatched";
     if (reliable) {
-      const begin = tokens[tokenIndices[first!]], end = tokens[tokenIndices[last!]];
+      const begin = tokens[tokenIndices[first]], end = tokens[tokenIndices[last]];
       if (begin.start >= previousEnd && end.end > begin.start) {
         sentence.startTime = begin.start; sentence.endTime = end.end;
         sentence.timingSource = "speech"; previousEnd = end.end; matched++;
@@ -4319,7 +4351,7 @@ class NoteSentenceAligner {
         .replace(/^\s*\d+\.\s+/, "")
         .replace(/\*\*([^*]+)\*\*/g, "$1")
         .replace(/[*_~`]/g, "")
-        .replace(/[。！？，；：、.!?,;:"'“”‘’（）()\[\]【】《》〈〉\s]/g, "")
+        .replace(/[。！？，；：、.!?,;:"'“”‘’（）()[\]【】《》〈〉\s]/g, "")
         .toLowerCase();
 
     // 检查正文开头第一行有效内容是否已包含标题（与 cleanTextForTts 保持完全一致的防重复逻辑）
@@ -4406,7 +4438,7 @@ class NoteSentenceAligner {
         .replace(/\*([^*]+)\*/g, "$1")
         .replace(/`([^`]+)`/g, "$1")
         .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-        .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, p1, p2) => p2 || p1)
+        .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m: string, p1: string, p2: string) => p2 || p1)
         .trim();
 
       if (!cleanLine || !/[\p{L}\p{N}]/u.test(cleanLine)) continue;
@@ -4772,7 +4804,7 @@ class NoteFloatingPlayer {
     });
 
     const onPlay = () => {
-      const cardAudio = this.view.containerEl.querySelector(".podvoice-card-audio") as HTMLAudioElement | null;
+      const cardAudio = this.view.containerEl.querySelector<HTMLAudioElement>(".podvoice-card-audio");
       if (cardAudio && !cardAudio.paused) {
         cardAudio.pause();
       }
@@ -4905,10 +4937,8 @@ class NoteFloatingPlayer {
         return;
       }
 
-      const lineEl = target.closest(".cm-line") as HTMLElement | null;
-      const pEl = target.closest(
-        ".markdown-rendered p, .markdown-rendered h1, .markdown-rendered h2, .markdown-rendered h3, .markdown-rendered h4, .markdown-rendered li, .markdown-rendered blockquote"
-      ) as HTMLElement | null;
+      const lineEl = target.closest<HTMLElement>(".cm-line");
+      const pEl = target.closest<HTMLElement>(".markdown-rendered p, .markdown-rendered h1, .markdown-rendered h2, .markdown-rendered h3, .markdown-rendered h4, .markdown-rendered li, .markdown-rendered blockquote");
       const el = lineEl || pEl;
       if (!el || !el.textContent) return;
 
@@ -4935,13 +4965,11 @@ class NoteFloatingPlayer {
     return (
       this.view.containerEl.querySelector(".cm-scroller, .markdown-preview-view") ||
       this.view.containerEl.querySelector(".view-content")
-    ) as HTMLElement | null;
+    );
   }
 
   private getActiveHighlightEl(): HTMLElement | null {
-    return this.view.containerEl.querySelector(
-      ".cm-line.podvoice-active-line, .podvoice-sentence-active"
-    ) as HTMLElement | null;
+    return this.view.containerEl.querySelector<HTMLElement>(".cm-line.podvoice-active-line, .podvoice-sentence-active");
   }
 
   private scrollElementToCenter(el: HTMLElement, smooth = true) {
@@ -4995,7 +5023,7 @@ class NoteFloatingPlayer {
     const rawClean = sentence.raw.trim();
     const matchKey = rawClean.length > 15 ? rawClean.slice(0, 15) : rawClean;
     const cleanSentenceText = sentence.text.trim().slice(0, 15);
-    const cleanRawWithoutMd = sentence.raw.replace(/^[#\-*\d\.\s>]+/, "").trim().slice(0, 15);
+    const cleanRawWithoutMd = sentence.raw.replace(/^[#\-*\d.\s>]+/, "").trim().slice(0, 15);
 
     let activeEl: HTMLElement | null = null;
 
@@ -5084,7 +5112,7 @@ class NoteFloatingPlayer {
           { from: { line: sentence.lineIndex, ch: 0 }, to: { line: sentence.lineIndex, ch: 0 } },
           true
         );
-      } catch {}
+      } catch { /* The media or view may already have been disposed. */ }
     }
 
     // 在下一帧（DOM 已被 CodeMirror 挂载渲染）后，重新高亮并精细平滑居中校准
@@ -5220,7 +5248,7 @@ class NoteFloatingPlayer {
     try {
       this.audio.pause();
       this.audio.src = "";
-    } catch {}
+    } catch { /* The media or view may already have been disposed. */ }
 
     this.view.containerEl.querySelectorAll(".cm-line.podvoice-active-line").forEach((el) => {
       el.removeClass("podvoice-active-line");
@@ -5230,7 +5258,7 @@ class NoteFloatingPlayer {
     });
 
     for (const fn of this.cleanupFns) {
-      try { fn(); } catch {}
+      try { fn(); } catch { /* The media or view may already have been disposed. */ }
     }
     this.cleanupFns = [];
 
@@ -5266,7 +5294,7 @@ class GenerationLogsModal extends Modal {
           if (count >= 50) break;
           let log: GenerationLog;
           try {
-            log = JSON.parse(await adapter.read(path));
+            log = JSON.parse(await adapter.read(path)) as GenerationLog;
             if (log.version !== 1 || !Object.prototype.hasOwnProperty.call(statuses, log.status)) throw new Error("Invalid log");
           } catch { unreadable++; continue; }
           const entry = list.createEl("details");
@@ -5390,12 +5418,12 @@ class AudioResultModal extends Modal {
       const noteLink = noteInfo.createEl("a", { text: linkedNote.basename, cls: "note-tts-source-link" });
       noteLink.addEventListener("click", (e) => {
         e.preventDefault();
-        this.app.workspace.openLinkText(linkedNote!.path, "", false);
-        new Notice(`已打开笔记：${linkedNote!.basename}`);
+        void this.app.workspace.openLinkText(linkedNote.path, "", false).catch(error => new Notice(errorMessage(error)));
+        new Notice(`已打开笔记：${linkedNote.basename}`);
       });
       const jumpBtn = noteCard.createEl("button", { text: "打开笔记", cls: "mod-cta note-tts-jump-btn" });
       jumpBtn.addEventListener("click", () => {
-        this.app.workspace.openLinkText(linkedNote!.path, "", false);
+        void this.app.workspace.openLinkText(linkedNote.path, "", false).catch(error => new Notice(errorMessage(error)));
         this.close();
       });
     } else {
@@ -5450,7 +5478,7 @@ class AudioResultModal extends Modal {
           .setDisabled(!linkedNote)
           .onClick(() => {
             if (linkedNote) {
-              this.app.workspace.openLinkText(linkedNote.path, "", false);
+              void this.app.workspace.openLinkText(linkedNote.path, "", false).catch(error => new Notice(errorMessage(error)));
               this.close();
             }
           })
@@ -5573,10 +5601,12 @@ interface NativeFolderDialog {
 function getNativeFolderDialog(): NativeFolderDialog | undefined {
   // Obsidian desktop versions expose the native dialog through either remote bridge.
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Load optional desktop APIs only when this feature runs.
     const remote = require("@electron/remote") as { dialog?: NativeFolderDialog };
     if (remote.dialog) return remote.dialog;
   } catch { /* Older desktop builds expose electron.remote instead. */ }
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Load optional desktop APIs only when this feature runs.
     return (require("electron") as { remote?: { dialog?: NativeFolderDialog } }).remote?.dialog;
   } catch { return undefined; }
 }
@@ -5920,6 +5950,7 @@ class NoteTtsSettingTab extends PluginSettingTab {
         try {
           const dialog = getNativeFolderDialog();
           if (!dialog) throw new Error(this.label("无法打开系统文件夹选择窗口，请更新 Obsidian 后重试。", "Cannot open the system folder picker. Update Obsidian and try again."));
+          // eslint-disable-next-line @typescript-eslint/no-require-imports -- Load optional desktop APIs only when this feature runs.
           const path = require("path") as typeof import("path");
           const rootPath = adapter.getBasePath();
           const current = this.app.vault.getAbstractFileByPath(s.batchSyncFolder);
@@ -6078,7 +6109,9 @@ class NoteTtsSettingTab extends PluginSettingTab {
 function renderJsonTemplate(template: string, text: string) {
   const rendered = template.replace(/{{text}}/g, escapeJsonStringContent(text));
   try {
-    return JSON.parse(rendered);
+    const value: unknown = JSON.parse(rendered);
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("模板必须返回 JSON 对象。");
+    return value as Record<string, unknown>;
   } catch (error) {
     throw new Error(`JSON 模板无法解析：${error instanceof Error ? error.message : String(error)}`);
   }
@@ -6131,9 +6164,20 @@ function findFirstUrl(value: unknown): string | null {
   return null;
 }
 
-function getByPath(value: any, path: string) {
+function renderHeaderTemplate(template: string, text: string): Record<string, string> {
+  const value = renderJsonTemplate(template, text);
+  const headers: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item !== "string") throw new Error("请求头的值必须是字符串。");
+    headers[key] = item;
+  }
+  return headers;
+}
+
+function getByPath(value: unknown, path: string): unknown {
   if (!path) return undefined;
-  return path.split(".").reduce((current, key) => current?.[key], value);
+  return path.split(".").reduce<unknown>((current, key) =>
+    current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined, value);
 }
 
 function looksLikeJson(contentType: string | undefined) {
@@ -6218,26 +6262,26 @@ async function requestUrlWithRetries(
   throw new Error(`${prefix}：${errorMessage(lastError)}`);
 }
 
-function errorMessage(error: unknown) {
+function errorMessage(error: unknown): string {
   if (error && typeof error === "object") {
-    const err = error as any;
+    const err = error as { json?: unknown; text?: unknown; message?: unknown };
+    const message = typeof err.message === "string" ? err.message : "";
     let detail = "";
+    const bodyDetail = (body: unknown, fallback: string): string => {
+      if (!body || typeof body !== "object") return fallback;
+      const value = body as Record<string, unknown>;
+      if (typeof value.message === "string") return value.message;
+      if (typeof value.error === "string") return value.error;
+      return fallback;
+    };
     if (err.json && typeof err.json === "object") {
-      detail = err.json.message || err.json.error || JSON.stringify(err.json);
+      detail = bodyDetail(err.json, JSON.stringify(err.json));
     } else if (typeof err.text === "string" && err.text.trim()) {
-      try {
-        const parsed = JSON.parse(err.text);
-        detail = parsed.message || parsed.error || err.text;
-      } catch {
-        detail = err.text;
-      }
+      try { detail = bodyDetail(JSON.parse(err.text) as unknown, err.text); }
+      catch { detail = err.text; }
     }
-    if (detail) {
-      return `${err.message || "请求失败"}：${detail}`;
-    }
-    if (err.message) {
-      return err.message;
-    }
+    if (detail) return `${message || "请求失败"}：${detail}`;
+    if (message) return message;
   }
   return error instanceof Error ? error.message : String(error);
 }
