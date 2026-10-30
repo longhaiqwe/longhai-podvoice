@@ -8,6 +8,36 @@ Longhai PodVoice 将 Markdown 笔记转换为音频，保存在当前 Obsidian �
 
 ---
 
+
+## English overview
+
+Longhai PodVoice converts Markdown notes to speech, saves audio in the vault, and links it back to the source note. It supports whole-note, selection, and folder generation; playback controls; and sentence highlighting. Providers include Volcengine, MiniMax, Replicate, a separately deployed GPT-SoVITS server, and custom HTTP endpoints.
+
+This release is **desktop only**. macOS has been tested; Windows and Linux have not been tested in this release cycle. Community directory approval is pending.
+
+### Installation
+
+1. Download `main.js`, `manifest.json`, and `styles.css` from [GitHub Releases](https://github.com/longhaiqwe/longhai-podvoice/releases).
+2. Copy the three files into `<vault>/.obsidian/plugins/longhai-podvoice/`.
+3. Reload Obsidian and enable **Longhai PodVoice** under **Settings → Community plugins**.
+
+After directory approval, the plugin can also be installed by searching for its name in Obsidian's community plugin browser.
+
+### Usage
+
+1. Open the plugin settings, select a speech provider, and configure that provider's endpoint and credentials.
+2. Open a Markdown note and use the **Listen to full note** button or the plugin's generation command. For folder generation, use the folder context menu.
+3. The generated audio is saved under `TTS Audio` by default and linked through the note's `audio` property. Click the note's listening button again to play it. The floating player supports pause, seeking, speed changes, and highlighting.
+
+### Requirements and privacy
+
+Cloud providers may charge fees and require separate accounts. The configured provider receives the text submitted for synthesis and the credentials needed for that request. Credentials are stored unencrypted in the plugin's `data.json`, which may be included in vault synchronization. Custom endpoints are controlled by the user.
+
+Local GPT-SoVITS and its models must be installed separately. The named voice presets contain server paths and parameters only; this release includes no voice models, model weights, or reference recordings. Use only models and recordings you are authorized to use.
+
+Optional offline speech alignment runs locally and needs Node.js, FFmpeg, `sherpa-onnx-node`, and a SenseVoice model installed separately. The worker code is bundled in `main.js`; the plugin does not download executable code. Without the required environment, playback remains available with estimated highlighting.
+
+
 ## 🌟 核心特性
 
 1. **火山引擎语音合成**：
@@ -72,7 +102,7 @@ Longhai PodVoice 将 Markdown 笔记转换为音频，保存在当前 Obsidian �
 
 9. **📁 目录批量与定时增量生成（个人专属播客流 / 随身听专辑）**：
    - **文件夹右键批量生成**：直接在左侧文件列表右键任意目录，选择「听笔记：增量生成此目录内所有笔记音频」。
-   - **智能增量判定（mtime 智能比对）**：系统自动对比笔记与对应音频的修改时间。未修改笔记自动跳过（节省 API 额度与耗时），已修改或新增笔记重新生成最新音频！
+   - **增量判定**：优先比较移除 Frontmatter 后的正文摘要，正文未变时跳过生成。旧音频缺少摘要记录时，再比较笔记和音频的修改时间，并容许写入音频关联属性造成的 5 秒时间差。
    - **每天定时自动更新**：支持设定每日固定时间（如每晚 12 点 `00:00`）自动增量更新监控目录（如“待听播客”或“每周精选”）。
    - **休眠唤醒补跑（Catch-up）**：若半夜电脑关机或休眠，下次唤醒或打开 Obsidian 时，插件自动静默增量补跑，无感自动化。
    - **非侵入式后台队列**：右下角状态栏实时显示 `🎧 听笔记 (2/5): 文章标题...`，不弹窗阻塞写作，完成后弹汇总通知。
