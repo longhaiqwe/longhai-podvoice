@@ -106,7 +106,7 @@ async function transcribe(audioPath) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
-if (require.main === module) {
+if (require.main === module || process.argv[1] === "-") {
   const audioPath = process.argv[2];
   if (!audioPath) { process.stderr.write('Usage: node speech-timing.cjs AUDIO\n'); process.exitCode = 1; }
   else transcribe(path.resolve(audioPath)).then(value => process.stdout.write(JSON.stringify(value)))

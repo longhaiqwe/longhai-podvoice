@@ -3,8 +3,8 @@
   "name": "Longhai PodVoice",
   "version": "1.0.0",
   "minAppVersion": "1.5.0",
-  "description": "Podcast-grade note-to-speech with Volcengine Doubao TTS, local storage, and bi-directional note linking (播客级有声笔记插件，搭载火山引擎豆包语音).",
+  "description": "Convert notes to speech with cloud or local TTS, save audio in your vault, and follow playback with sentence highlighting.",
   "author": "龙海",
   "authorUrl": "https://github.com/longhaiqwe",
-  "isDesktopOnly": false
+  "isDesktopOnly": true
 }

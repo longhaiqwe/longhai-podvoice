@@ -1,11 +1,14 @@
 {
   "name": "longhai-podvoice",
   "version": "1.0.0",
-  "description": "Longhai PodVoice — Obsidian 播客级有声笔记插件：将笔记转换为高品质语音（默认支持火山引擎豆包语音），本地保存并与笔记双向关联。",
+  "description": "将 Markdown 笔记转换为语音，保存音频并关联笔记，支持云端和本地语音服务。",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "test": "node --test tests/*.test.cjs",
+    "lint": "eslint main.ts",
+    "typecheck": "tsc --noEmit --skipLibCheck"
   },
   "keywords": [
     "obsidian",
@@ -21,11 +24,16 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.11.30",
-    "esbuild": "^0.20.2",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.4.2",
     "obsidian": "^1.5.12",
     "typescript": "^5.4.3"
   },
   "dependencies": {
     "diff": "^9.0.0"
+  },
+  "overrides": {
+    "moment": "^2.31.0"
   }
 }
