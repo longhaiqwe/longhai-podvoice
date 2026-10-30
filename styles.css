@@ -177,72 +177,247 @@
   }
 }
 
-/* 标题旁边与顶部动作按钮样式 */
-.podvoice-inline-btn {
+/* 笔记正文顶部音频播放条样式 - 极简纸张播客质感 */
+.podvoice-podcast-card {
+  margin: 12px 0 20px 0;
+  padding: 8px 10px;
+  background-color: var(--podvoice-card-bg, #fbf7ef);
+  border: 1px solid var(--podvoice-card-border, #ede5d8);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+/* 暗色主题自适应 */
+.theme-dark .podvoice-podcast-card {
+  --podvoice-card-bg: var(--background-secondary);
+  --podvoice-card-border: var(--background-modifier-border);
+  box-shadow: none;
+}
+
+.podvoice-card-player-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.podvoice-card-audio {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  border-radius: 8px;
+  outline: none;
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.theme-dark .podvoice-card-audio {
+  background-color: var(--background-primary);
+  border-color: var(--background-modifier-border);
+}
+
+.podvoice-card-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.podvoice-card-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-s, 4px);
+  color: var(--text-muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.podvoice-card-btn:hover {
+  color: var(--interactive-accent);
+  background-color: var(--background-modifier-hover);
+}
+
+.podvoice-card-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* 正在生成中的卡片状态 */
+.podvoice-podcast-card.is-loading {
+  background-color: var(--background-secondary);
+  border-style: dashed;
+}
+
+.podvoice-card-loading-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  font-size: 13px;
+  color: var(--interactive-accent);
+}
+
+/* 莫问同款「听全文」胶囊按钮样式 */
+.inline-title {
+  clear: none !important;
+}
+
+.podvoice-mowen-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 11px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 20px;
+  height: 28px;
+  padding: 3px 12px 3px 8px;
+  border-radius: 9999px;
+  background-color: var(--background-primary, #ffffff);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   cursor: pointer;
   user-select: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
-  float: right;
-  margin-top: 6px;
-  margin-bottom: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  outline: none;
-  z-index: 5;
-}
-
-.podvoice-inline-btn.podvoice-btn-ready {
-  background-color: var(--background-secondary);
-  color: var(--text-muted);
-  border: 1px solid var(--background-modifier-border);
-}
-
-.podvoice-inline-btn.podvoice-btn-ready:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
-  border-color: var(--interactive-accent);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
-}
-
-.podvoice-inline-btn.podvoice-btn-has-audio {
-  background-color: rgba(var(--interactive-accent-rgb, 100, 150, 255), 0.12);
-  color: var(--interactive-accent);
-  border: 1px solid var(--interactive-accent);
-}
-
-.podvoice-inline-btn.podvoice-btn-has-audio:hover {
-  background-color: var(--interactive-accent);
-  color: var(--text-on-accent);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-}
-
-.podvoice-inline-btn.podvoice-btn-loading {
-  background-color: var(--background-secondary);
-  color: var(--interactive-accent);
-  border: 1px dashed var(--interactive-accent);
-  cursor: wait;
-  opacity: 0.85;
-}
-
-.podvoice-inline-btn svg {
-  width: 13px;
-  height: 13px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--text-normal, #334155);
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+  text-decoration: none;
   vertical-align: middle;
 }
 
+/* 深色模式下的胶囊适配 */
+.theme-dark .podvoice-mowen-pill {
+  background-color: var(--background-secondary, #202020);
+  border-color: var(--background-modifier-border, #3a3a3a);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  color: var(--text-normal, #e2e8f0);
+}
+
+.podvoice-mowen-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.08);
+  border-color: var(--interactive-accent, #3b82f6);
+  color: var(--text-normal);
+}
+
+.theme-dark .podvoice-mowen-pill:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  border-color: var(--interactive-accent, #60a5fa);
+}
+
+.podvoice-mowen-pill:active {
+  transform: translateY(0);
+}
+
+/* 按钮位置形态适配 */
+/* 1. 标题右侧（推荐，契合图1红框） */
+.podvoice-mowen-pill.pos-right {
+  float: right;
+  align-self: flex-end;
+  margin-top: 6px;
+  margin-right: 6px;
+  margin-left: 12px;
+  position: relative;
+  z-index: 10;
+}
+
+/* 2. 标题上方（莫问原版，契合图3） */
+.podvoice-mowen-pill.pos-top {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+
+/* 3. 标题下方（在标题与正文之间） */
+.podvoice-mowen-pill.pos-bottom {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+/* 4. 无内联标题时的兜底回退 */
+.podvoice-mowen-pill.pos-fallback {
+  margin: 8px 0 12px 0;
+}
+
+/* 莫问 AI 耳机图标区 */
+.podvoice-mowen-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--text-muted, #64748b);
+  transition: color 0.15s ease;
+}
+
+.podvoice-mowen-pill:hover .podvoice-mowen-icon-wrap {
+  color: var(--interactive-accent, #3b82f6);
+}
+
+.podvoice-mowen-svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+/* 绿勾徽章：仅在已生成状态展示 */
+.podvoice-mowen-pill .podvoice-badge-check {
+  display: none;
+}
+
+.podvoice-mowen-pill.is-has-audio .podvoice-badge-check {
+  display: block;
+}
+
+/* 文章修改后带提示的小徽章状态 */
+.podvoice-mowen-pill.is-outdated .podvoice-badge-check circle {
+  fill: #f59e0b; /* 琥珀色提醒文章有变动 */
+}
+
+/* 正在后台生成中状态 */
+.podvoice-mowen-pill.is-generating {
+  cursor: wait;
+  opacity: 0.9;
+  border-color: var(--interactive-accent, #3b82f6);
+}
+
+.podvoice-mowen-pill.is-generating .podvoice-mowen-svg {
+  animation: note-tts-spin 1.2s linear infinite;
+}
+
+/* 正在播放中状态 */
+.podvoice-mowen-pill.is-playing {
+  border-color: var(--interactive-accent, #3b82f6);
+  background-color: rgba(var(--interactive-accent-rgb, 59, 130, 246), 0.06);
+}
+
+.podvoice-mowen-pill.is-playing .podvoice-mowen-icon-wrap {
+  color: var(--interactive-accent, #3b82f6);
+}
+
+/* 文字部分 */
+.podvoice-mowen-text {
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+/* 微型加载指示器 */
 .podvoice-spinner-mini {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border: 2px solid currentColor;
   border-top-color: transparent;
   border-radius: 50%;
@@ -252,5 +427,497 @@
 .podvoice-header-btn.is-loading {
   color: var(--interactive-accent);
   animation: note-tts-spin 1.5s linear infinite;
+}
+
+/* ==========================================================================
+   全新功能：浮动伴读播放底栏（Floating Companion Player）与逐句高亮
+   ========================================================================== */
+
+/* 1. 浮动伴读底栏容器（脱离正文滚动，悬浮在视口正下方） */
+.podvoice-floating-bar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 36px);
+  max-width: 660px;
+  min-width: 310px;
+  background-color: var(--podvoice-float-bg, rgba(253, 252, 248, 0.94));
+  border: 1px solid var(--podvoice-float-border, rgba(214, 206, 191, 0.8));
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(45, 35, 20, 0.12), 0 2px 8px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: var(--layer-popover, 50);
+  padding: 12px 16px 10px 16px;
+  transition: all 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-sizing: border-box;
+  user-select: none;
+}
+
+/* 暗色主题毛玻璃适配 */
+.theme-dark .podvoice-floating-bar {
+  --podvoice-float-bg: rgba(28, 29, 33, 0.92);
+  --podvoice-float-border: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 2. 迷你折叠胶囊模式（只占右下角一个小药丸，不遮挡正文） */
+.podvoice-floating-bar.is-collapsed {
+  bottom: 20px;
+  left: auto;
+  right: 24px;
+  transform: none;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.podvoice-floating-bar.is-collapsed .podvoice-floating-main {
+  display: none !important;
+}
+
+.podvoice-floating-mini-trigger {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+
+.podvoice-floating-bar.is-collapsed .podvoice-floating-mini-trigger {
+  display: flex;
+}
+
+.podvoice-mini-pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--interactive-accent, #ea580c);
+  animation: podvoice-pulse 1.8s infinite ease-in-out;
+}
+
+@keyframes podvoice-pulse {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px var(--interactive-accent, #ea580c); }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+/* 3. 完整伴读控制器内部布局 */
+.podvoice-floating-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* 顶部：当前朗读句子摘要与一键回跳 */
+.podvoice-floating-sentence-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.podvoice-current-sentence-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: rgba(234, 88, 12, 0.12);
+  color: var(--interactive-accent, #ea580c);
+  flex-shrink: 0;
+}
+
+.podvoice-current-sentence-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-normal);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.podvoice-current-sentence-text:hover {
+  color: var(--interactive-accent, #ea580c);
+  text-decoration: underline;
+}
+
+.podvoice-btn-locate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.podvoice-btn-locate:hover {
+  color: var(--interactive-accent);
+  background-color: var(--background-modifier-hover);
+}
+
+/* 进度条与时间显示 */
+.podvoice-floating-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.podvoice-time-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  user-select: none;
+}
+
+.podvoice-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--background-modifier-border, #e2dcd1);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  transition: height 0.15s ease;
+}
+
+.podvoice-slider:hover {
+  height: 6px;
+}
+
+.podvoice-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ea580c !important;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
+  transition: transform 0.1s ease;
+}
+
+.podvoice-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+/* 控制按钮组（单行流式排布） */
+.podvoice-floating-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.podvoice-controls-left,
+.podvoice-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.podvoice-controls-right {
+  justify-content: flex-end;
+}
+
+.podvoice-controls-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* 核心播放/暂停大按键 (高对比度、清晰可见、防主题覆盖) */
+.podvoice-floating-bar button.podvoice-btn-play-pause,
+.podvoice-floating-bar .podvoice-btn-play-pause,
+button.podvoice-btn-play-pause,
+.podvoice-btn-play-pause {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background: #ea580c !important;
+  background-color: #ea580c !important;
+  color: #ffffff !important;
+  border: none !important;
+  outline: none !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.4) !important;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.podvoice-floating-bar button.podvoice-btn-play-pause:hover,
+.podvoice-floating-bar .podvoice-btn-play-pause:hover,
+button.podvoice-btn-play-pause:hover,
+.podvoice-btn-play-pause:hover {
+  background: #c2410c !important;
+  background-color: #c2410c !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 6px 16px rgba(234, 88, 12, 0.5) !important;
+}
+
+.podvoice-floating-bar button.podvoice-btn-play-pause:active,
+.podvoice-floating-bar .podvoice-btn-play-pause:active,
+button.podvoice-btn-play-pause:active,
+.podvoice-btn-play-pause:active {
+  transform: scale(0.95) !important;
+}
+
+.podvoice-btn-play-pause svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke: #ffffff !important;
+  fill: #ffffff !important;
+  stroke-width: 2.5 !important;
+  display: block !important;
+}
+
+.podvoice-btn-play-pause svg.lucide-play {
+  margin-left: 2px !important;
+}
+
+/* 快退/快进按键 */
+.podvoice-btn-seek {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--text-normal);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.podvoice-btn-seek:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--interactive-accent);
+}
+
+.podvoice-btn-seek svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* 倍速与跟随开关胶囊 */
+.podvoice-btn-speed,
+.podvoice-btn-autoscroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  height: 26px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border, rgba(0, 0, 0, 0.08));
+  background-color: var(--background-primary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.podvoice-btn-speed:hover,
+.podvoice-btn-autoscroll:hover {
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
+}
+
+.podvoice-btn-autoscroll.is-active {
+  background-color: rgba(234, 88, 12, 0.1);
+  color: var(--interactive-accent, #ea580c);
+  border-color: rgba(234, 88, 12, 0.3);
+}
+
+/* 折叠与关闭按钮 */
+.podvoice-btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.podvoice-btn-action:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.podvoice-btn-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ==========================================================================
+   4. 正文朗读逐句高亮效果（温润荧光笔效果与平滑动画）
+   ========================================================================== */
+
+/* 实时预览模式（Live Preview CM6）的行高亮 */
+.cm-line.podvoice-active-line {
+  background-color: var(--podvoice-highlight-bg, rgba(254, 240, 138, 0.45)) !important;
+  border-left: 3.5px solid var(--interactive-accent, #ea580c) !important;
+  padding-left: 8px !important;
+  border-radius: 0 4px 4px 0 !important;
+  box-shadow: 0 0 16px rgba(234, 88, 12, 0.1);
+  scroll-margin-top: 140px;
+  scroll-margin-bottom: 140px;
+  transition: background-color 0.25s ease, border-left 0.25s ease, box-shadow 0.25s ease;
+}
+
+.theme-dark .cm-line.podvoice-active-line {
+  --podvoice-highlight-bg: rgba(234, 179, 8, 0.22);
+  box-shadow: 0 0 16px rgba(234, 179, 8, 0.08);
+}
+
+/* 阅读模式（Reading View）段落与句子高亮 */
+.markdown-rendered .podvoice-sentence-active,
+.podvoice-sentence-active {
+  background-color: var(--podvoice-highlight-bg, rgba(254, 240, 138, 0.45)) !important;
+  border-left: 3.5px solid var(--interactive-accent, #ea580c) !important;
+  padding-left: 8px !important;
+  border-radius: 0 4px 4px 0 !important;
+  box-shadow: 0 0 16px rgba(234, 88, 12, 0.1);
+  scroll-margin-top: 140px;
+  scroll-margin-bottom: 140px;
+  transition: background-color 0.25s ease, border-left 0.25s ease, box-shadow 0.25s ease;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* 支持点哪读哪的提示样式 */
+.podvoice-interactive-mode .cm-line:hover,
+.podvoice-interactive-mode .markdown-rendered p:hover {
+  cursor: pointer;
+}
+
+
+
+/* Settings: hierarchy via spacing and native disclosures (§2.1, §3.6, §8.5).
+   Obsidian tokens keep light/dark themes and mobile controls consistent. */
+.podvoice-settings .podvoice-settings-section {
+  margin-bottom: var(--size-4-6);
+}
+
+.podvoice-settings .podvoice-settings-section > .setting-item-heading {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.podvoice-settings .podvoice-settings-fold {
+  margin-block: var(--size-4-2);
+}
+
+.podvoice-settings .podvoice-settings-fold > summary {
+  color: var(--text-muted);
+  cursor: pointer;
+  padding-block: var(--size-4-3);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+  overflow-wrap: anywhere;
+}
+
+.podvoice-settings .podvoice-settings-fold > summary:hover,
+.podvoice-settings .podvoice-settings-fold[open] > summary {
+  color: var(--text-normal);
+}
+
+.podvoice-settings .podvoice-settings-fold > summary:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-s);
+}
+
+.podvoice-settings .podvoice-settings-fold-body,
+.podvoice-settings .podvoice-settings-rules {
+  padding-inline-start: var(--size-4-4);
+  border-inline-start: 1px solid var(--background-modifier-border);
+}
+
+.podvoice-settings .setting-item-info,
+.podvoice-settings .setting-item-control {
+  min-width: 0;
+}
+
+.podvoice-settings .setting-item-description {
+  max-width: 35em;
+  overflow-wrap: anywhere;
+}
+
+.podvoice-settings select,
+.podvoice-settings input,
+.podvoice-settings textarea {
+  max-width: 100%;
+}
+
+.podvoice-settings textarea {
+  min-height: 6em;
+  width: 100%;
+  resize: vertical;
+}
+
+@media (max-width: 600px) {
+  .podvoice-settings .setting-item {
+    flex-wrap: wrap;
+    gap: var(--size-4-2);
+  }
+  .podvoice-settings .setting-item-control {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .podvoice-settings .setting-item:has(input:not([type="checkbox"]), select, textarea) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .podvoice-settings .setting-item:has(input:not([type="checkbox"]), select, textarea) .setting-item-control {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .podvoice-settings .setting-item-control > input:not([type="checkbox"]),
+  .podvoice-settings .setting-item-control > select,
+  .podvoice-settings .setting-item-control > textarea {
+    width: 100%;
+  }
+  .podvoice-settings .podvoice-settings-fold-body,
+  .podvoice-settings .podvoice-settings-rules {
+    padding-inline-start: var(--size-4-2);
+  }
 }
 

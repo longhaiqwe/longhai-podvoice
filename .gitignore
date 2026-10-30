@@ -1,3 +1,18 @@
 node_modules/
 .DS_Store
 
+# 模型通过 Release Assets 分发，不作为普通 Git 文件提交。
+*.ckpt
+*.pth
+*.pt
+*.safetensors
+*.onnx
+GPT_weights*/
+SoVITS_weights*/
+/reference_audio/
+/model-releases/
+podvoice-models-*.zip
+*.part
+__pycache__/
+*.py[cod]
+

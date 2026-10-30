@@ -1,0 +1,13 @@
+{
+  "speaker": "liufei",
+  "name": "刘飞",
+  "audio_file": "reference_audio/liufei_raw_6min.wav_0007375680_0007662400.wav",
+  "role": "auxiliary",
+  "prompt_text": "更想从一个做过手机产品经理的视角。对，现在回想起来挺有意思的。在十几年前，我居然还是做过手机的产品经理的。",
+  "prompt_language": "zh",
+  "sample_rate": 32000,
+  "channels": 1,
+  "duration_seconds": 8.96,
+  "annotation_source": "dataset/liufei/liufei.list",
+  "annotation_note": "沿用现有提示文本或训练清单；本次未重新人工听音校对。辅助参考在当前 API 中不使用此文本。"
+}

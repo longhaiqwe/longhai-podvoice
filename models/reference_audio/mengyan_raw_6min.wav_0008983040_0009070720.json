@@ -1,0 +1,13 @@
+{
+  "speaker": "mengyan",
+  "name": "孟岩",
+  "audio_file": "reference_audio/mengyan_raw_6min.wav_0008983040_0009070720.wav",
+  "role": "auxiliary",
+  "prompt_text": "他已经捐出了6亿美元，却无人知晓。",
+  "prompt_language": "zh",
+  "sample_rate": 32000,
+  "channels": 1,
+  "duration_seconds": 2.74,
+  "annotation_source": "dataset/mengyan/mengyan.list",
+  "annotation_note": "沿用现有提示文本或训练清单；本次未重新人工听音校对。辅助参考在当前 API 中不使用此文本。"
+}

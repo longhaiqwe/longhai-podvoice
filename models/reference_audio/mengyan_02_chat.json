@@ -1,0 +1,12 @@
+{
+  "name": "孟岩",
+  "audio_file": "reference_audio/mengyan_02_chat.wav",
+  "prompt_text": "但即使是这样，即使是在创业维艰的5年之后，我们的收入也没有多少。",
+  "prompt_language": "zh",
+  "speaker": "mengyan",
+  "style": "contemplative_podcast_heartfelt",
+  "source": "无人知晓 E40 够与多",
+  "sample_rate": 32000,
+  "duration_seconds": 6.03,
+  "source_url": "https://youzhiyouxing.cn/materials/1939"
+}

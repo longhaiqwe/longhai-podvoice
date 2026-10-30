@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-30",
+  "publication_status": "local_only_pending_both_speakers_consent",
+  "archive": {
+    "path": "model-releases/podvoice-models-v1.zip",
+    "bytes": 445875952,
+    "sha256": "e2f19111a0e3d7d4de3adabded3dda64cb7bdc7bc421a3abf2fa3c3e5cc94a2a",
+    "members": 17
+  },
+  "runtime_inference_run": false,
+  "notes": [
+    "本次未启动、停止或调用生产语音服务。",
+    "使用完整包在独立临时目录校验，不等同于重新评测听感。"
+  ],
+  "first_install": {
+    "verified_files": 16,
+    "installed": 23,
+    "unchanged": 0
+  },
+  "repeat_install": {
+    "verified_files": 16,
+    "installed": 0,
+    "unchanged": 23
+  },
+  "verified_installed_payload_paths": 19,
+  "generated_config_files": 4,
+  "audio": [
+    {
+      "file": "liufei_02_chat.wav",
+      "sample_rate": 32000,
+      "channels": 1,
+      "seconds": 5.3
+    },
+    {
+      "file": "liufei_raw_6min.wav_0000128000_0000342400.wav",
+      "sample_rate": 32000,
+      "channels": 1,
+      "seconds": 6.7
+    },
+    {
+      "file": "liufei_raw_6min.wav_0007375680_0007662400.wav",
+      "sample_rate": 32000,
+      "channels": 1,
+      "seconds": 8.96
+    },
+    {
+      "file": "mengyan_02_chat.wav",
+      "sample_rate": 32000,
+      "channels": 1,
+      "seconds": 6.03
+    },
+    {
+      "file": "mengyan_03_philosophy.wav",
+      "sample_rate": 32000,
+      "channels": 1,
+      "seconds": 9.17
+    },
+    {
+      "file": "mengyan_raw_6min.wav_0008983040_0009070720.wav",
+      "sample_rate": 32000,
+      "channels": 1,
+      "seconds": 2.74
+    }
+  ],
+  "plugin_paths_and_primary_prompts_match": true,
+  "yaml_parser_check": "2 YAML configs parsed",
+  "setup_tests": {
+    "passed": 10,
+    "output": "test_conflict_does_not_write_any_other_file (test_setup_models.ModelSetupTests.test_conflict_does_not_write_any_other_file) ... ok\ntest_download_then_install_over_local_http (test_setup_models.ModelSetupTests.test_download_then_install_over_local_http) ... ok\ntest_external_manifest_cannot_change_install_path (test_setup_models.ModelSetupTests.test_external_manifest_cannot_change_install_path) ... ok\ntest_local_install_aliases_configs_and_repeat (test_setup_models.ModelSetupTests.test_local_install_aliases_configs_and_repeat) ... ok\ntest_manifest_rejects_unsafe_install_path (test_setup_models.ModelSetupTests.test_manifest_rejects_unsafe_install_path) ... ok\ntest_tampered_payload_rejected_before_target_creation (test_setup_models.ModelSetupTests.test_tampered_payload_rejected_before_target_creation) ... ok\ntest_target_symlink_rejected (test_setup_models.ModelSetupTests.test_target_symlink_rejected) ... ok\ntest_zip_checksum_rejected (test_setup_models.ModelSetupTests.test_zip_checksum_rejected) ... ok\ntest_zip_path_traversal_and_unexpected_file_rejected (test_setup_models.ModelSetupTests.test_zip_path_traversal_and_unexpected_file_rejected) ... ok\ntest_zip_symlink_rejected (test_setup_models.ModelSetupTests.test_zip_symlink_rejected) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.572s\n\nOK"
+  },
+  "git_index_check": "已检查 Git 索引中的 12 个文件，无超过 50 MiB 的文件。",
+  "git_ignore_check": [
+    "GPT_weights_v2/example.ckpt",
+    "nested/model.pth",
+    "model-releases/podvoice-models-v1.zip"
+  ],
+  "oversized_index_guard_test": {
+    "bytes": 52428801,
+    "exit_code": 1,
+    "rejected": true
+  },
+  "untracked_unignored_files_over_50_mib": []
+}

@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "package": "podvoice-models-v1",
+  "date": "2026-10-30",
+  "publication_status": "local_only_pending_both_speakers_consent",
+  "selection_basis": "沿用当前插件的历史 GPT + 清洗 SoVITS e2 组合。24 段 GPT 对照不足以证明清洗 GPT e2 全面更好；不宣称已穷举全部权重或完成主观稳定性排名。",
+  "evidence": [
+    "audits/20261029-clean-e2-comparison/对照说明.md",
+    "audits/20261030-liufei-verification/验证记录.md",
+    "audits/20261029-drawn-out-words/排查与修正.md"
+  ],
+  "runtime_source_sha256": {
+    "api_v2.py": "7cd6a8ed122a1e9bf2cc4084e12396e2d987cabb6d5ff5788d70b55bbb01546b",
+    "GPT_SoVITS/TTS_infer_pack/TTS.py": "626808ba15e81fe61022918344be4443d9853621c63397945ede1de26f83f9b3",
+    "GPT_SoVITS/TTS_infer_pack/TextPreprocessor.py": "a204269e6cf7b6302e2dc52ab22bdde8f0d8f609069c082f42a55550c4f20c57",
+    "GPT_SoVITS/TTS_infer_pack/text_segmentation_method.py": "e00a86c1548c4552b2260031f10a028bba858713eb0e589c4e317d881829c765"
+  },
+  "voices": {
+    "liufei": {
+      "name": "刘飞",
+      "preset_id": "liufei_acoustic_candidate",
+      "request": {
+        "text": "这是本地音色配置验证。会议从十点半开始。",
+        "text_lang": "zh",
+        "ref_audio_path": "reference_audio/liufei_02_chat.wav",
+        "gpt_weights_path": "GPT_weights_v2/liufei-e15.ckpt",
+        "sovits_weights_path": "SoVITS_weights_v2/liufei_clean_20260930_e2_s160.pth",
+        "aux_ref_audio_paths": [
+          "dataset/liufei/wavs/liufei_raw_6min.wav_0000128000_0000342400.wav",
+          "dataset/liufei/wavs/liufei_raw_6min.wav_0007375680_0007662400.wav"
+        ],
+        "prompt_text": "而关于折叠屏手机的一些讨论本身就挺有意思的。",
+        "prompt_lang": "zh",
+        "top_k": 15,
+        "top_p": 0.95,
+        "temperature": 0.82,
+        "repetition_penalty": 1.28,
+        "text_split_method": "cut_podcast",
+        "batch_size": 2,
+        "parallel_infer": true,
+        "independent_decode": true,
+        "split_bucket": true,
+        "speed_factor": 1,
+        "fragment_interval": 0.28,
+        "media_type": "wav",
+        "streaming_mode": false,
+        "mastering": true
+      }
+    },
+    "mengyan": {
+      "name": "孟岩",
+      "preset_id": "mengyan_acoustic_candidate",
+      "request": {
+        "text": "这是本地音色配置验证。会议从十点半开始。",
+        "text_lang": "zh",
+        "ref_audio_path": "reference_audio/mengyan_03_philosophy.wav",
+        "gpt_weights_path": "GPT_weights_v2/mengyan_v2-e25.ckpt",
+        "sovits_weights_path": "SoVITS_weights_v2/mengyan_clean_20260930_e2_s166.pth",
+        "aux_ref_audio_paths": [
+          "reference_audio/mengyan_02_chat.wav",
+          "dataset/mengyan/wavs/mengyan_raw_6min.wav_0008983040_0009070720.wav"
+        ],
+        "prompt_text": "像是在一个巨大的房间里面进行搜索。那终其一生，我们可能只能了解这个巨大房间的非常非常有限的一个角落。",
+        "prompt_lang": "zh",
+        "top_k": 15,
+        "top_p": 0.95,
+        "temperature": 0.82,
+        "repetition_penalty": 1.25,
+        "text_split_method": "cut_podcast",
+        "batch_size": 2,
+        "parallel_infer": true,
+        "independent_decode": true,
+        "split_bucket": true,
+        "speed_factor": 1,
+        "fragment_interval": 0.35,
+        "media_type": "wav",
+        "streaming_mode": false,
+        "mastering": true
+      }
+    }
+  },
+  "files": [
+    {
+      "archive_path": "GPT_weights/liufei-e15.ckpt",
+      "source_root": "service",
+      "source_path": "GPT_weights_v2/liufei-e15.ckpt",
+      "install_paths": [
+        "GPT_weights_v2/liufei-e15.ckpt"
+      ],
+      "size": 155309536,
+      "sha256": "69d21e205307b8ad5bb966e1a2cf3f877e7b8b79235f33becf2913d00e9d5480"
+    },
+    {
+      "archive_path": "GPT_weights/mengyan_v2-e25.ckpt",
+      "source_root": "service",
+      "source_path": "GPT_weights_v2/mengyan_v2-e25.ckpt",
+      "install_paths": [
+        "GPT_weights_v2/mengyan_v2-e25.ckpt"
+      ],
+      "size": 155308934,
+      "sha256": "0aa4df0f763e68d668d675a8c08476372a0040b4df18baaa3f49cddee87b6b65"
+    },
+    {
+      "archive_path": "SoVITS_weights/liufei_clean_20260930_e2_s160.pth",
+      "source_root": "service",
+      "source_path": "SoVITS_weights_v2/liufei_clean_20260930_e2_s160.pth",
+      "install_paths": [
+        "SoVITS_weights_v2/liufei_clean_20260930_e2_s160.pth"
+      ],
+      "size": 84999274,
+      "sha256": "92f4e2645d46a444a490ce596508869c506937e292018b107b12a2c5a3fba95c"
+    },
+    {
+      "archive_path": "SoVITS_weights/mengyan_clean_20260930_e2_s166.pth",
+      "source_root": "service",
+      "source_path": "SoVITS_weights_v2/mengyan_clean_20260930_e2_s166.pth",
+      "install_paths": [
+        "SoVITS_weights_v2/mengyan_clean_20260930_e2_s166.pth"
+      ],
+      "size": 84999274,
+      "sha256": "57ed14f059d0a7206ac5c11639145c5f029a3dfaf824679051e7224a5bba3d79"
+    },
+    {
+      "archive_path": "reference_audio/liufei_02_chat.json",
+      "source_root": "repository",
+      "source_path": "models/reference_audio/liufei_02_chat.json",
+      "install_paths": [
+        "reference_audio/liufei_02_chat.json"
+      ],
+      "size": 188,
+      "sha256": "e4a87e30908c6ecf107949c69ddc8100d396e04c0a4de7921527aa230a768904"
+    },
+    {
+      "archive_path": "reference_audio/liufei_02_chat.wav",
+      "source_root": "service",
+      "source_path": "reference_audio/liufei_02_chat.wav",
+      "install_paths": [
+        "reference_audio/liufei_02_chat.wav"
+      ],
+      "size": 339410,
+      "sha256": "38fa0baa3260b15c10f6ab1501ae76ef113139ee0f71be8424372a25ed85c688"
+    },
+    {
+      "archive_path": "reference_audio/liufei_raw_6min.wav_0000128000_0000342400.json",
+      "source_root": "repository",
+      "source_path": "models/reference_audio/liufei_raw_6min.wav_0000128000_0000342400.json",
+      "install_paths": [
+        "reference_audio/liufei_raw_6min.wav_0000128000_0000342400.json"
+      ],
+      "size": 559,
+      "sha256": "c1e2a985fe8f864f2f251bb9bf24a926ac8828b1ac8f33a0a3dcd43df4b08307"
+    },
+    {
+      "archive_path": "reference_audio/liufei_raw_6min.wav_0000128000_0000342400.wav",
+      "source_root": "service",
+      "source_path": "dataset/liufei/wavs/liufei_raw_6min.wav_0000128000_0000342400.wav",
+      "install_paths": [
+        "reference_audio/liufei_raw_6min.wav_0000128000_0000342400.wav",
+        "dataset/liufei/wavs/liufei_raw_6min.wav_0000128000_0000342400.wav"
+      ],
+      "size": 428844,
+      "sha256": "defb9db8f55a7330021a1fc81f8e48ce0a05453b8c565dbd0326d31f689bf873"
+    },
+    {
+      "archive_path": "reference_audio/liufei_raw_6min.wav_0007375680_0007662400.json",
+      "source_root": "repository",
+      "source_path": "models/reference_audio/liufei_raw_6min.wav_0007375680_0007662400.json",
+      "install_paths": [
+        "reference_audio/liufei_raw_6min.wav_0007375680_0007662400.json"
+      ],
+      "size": 632,
+      "sha256": "e18923fb571f5ff75ea0b9bd20a21ebae1b0b94741971a47a24f906a9548e096"
+    },
+    {
+      "archive_path": "reference_audio/liufei_raw_6min.wav_0007375680_0007662400.wav",
+      "source_root": "service",
+      "source_path": "dataset/liufei/wavs/liufei_raw_6min.wav_0007375680_0007662400.wav",
+      "install_paths": [
+        "reference_audio/liufei_raw_6min.wav_0007375680_0007662400.wav",
+        "dataset/liufei/wavs/liufei_raw_6min.wav_0007375680_0007662400.wav"
+      ],
+      "size": 573484,
+      "sha256": "081a0feea230c24a578040186f36cf3985f207f2199a282841937be66cf44180"
+    },
+    {
+      "archive_path": "reference_audio/mengyan_02_chat.json",
+      "source_root": "repository",
+      "source_path": "models/reference_audio/mengyan_02_chat.json",
+      "install_paths": [
+        "reference_audio/mengyan_02_chat.json"
+      ],
+      "size": 443,
+      "sha256": "047e6958bfd69f0368028dd15cf08acf590a89b8e61d45c37e14feec0113d18d"
+    },
+    {
+      "archive_path": "reference_audio/mengyan_02_chat.wav",
+      "source_root": "service",
+      "source_path": "reference_audio/mengyan_02_chat.wav",
+      "install_paths": [
+        "reference_audio/mengyan_02_chat.wav"
+      ],
+      "size": 385964,
+      "sha256": "433061f0bcf2e7ae20c8df0db885134d812dc615837baf8d2289263876d3e5b7"
+    },
+    {
+      "archive_path": "reference_audio/mengyan_03_philosophy.json",
+      "source_root": "repository",
+      "source_path": "models/reference_audio/mengyan_03_philosophy.json",
+      "install_paths": [
+        "reference_audio/mengyan_03_philosophy.json"
+      ],
+      "size": 602,
+      "sha256": "2bad824a5e160366146eef16f78a9a38170b1cf86c5abc2f7c7bc11b47fd1d6b"
+    },
+    {
+      "archive_path": "reference_audio/mengyan_03_philosophy.wav",
+      "source_root": "service",
+      "source_path": "reference_audio/mengyan_03_philosophy.wav",
+      "install_paths": [
+        "reference_audio/mengyan_03_philosophy.wav"
+      ],
+      "size": 586924,
+      "sha256": "9f4488a048118f366d207f171aed374c2e3b3a231a541b78b2c9fca914a91f29"
+    },
+    {
+      "archive_path": "reference_audio/mengyan_raw_6min.wav_0008983040_0009070720.json",
+      "source_root": "repository",
+      "source_path": "models/reference_audio/mengyan_raw_6min.wav_0008983040_0009070720.json",
+      "install_paths": [
+        "reference_audio/mengyan_raw_6min.wav_0008983040_0009070720.json"
+      ],
+      "size": 526,
+      "sha256": "3b275d549e9c5d4d82941f8fb1064139dda23ce3bdc7354ca8e60557d277caca"
+    },
+    {
+      "archive_path": "reference_audio/mengyan_raw_6min.wav_0008983040_0009070720.wav",
+      "source_root": "service",
+      "source_path": "dataset/mengyan/wavs/mengyan_raw_6min.wav_0008983040_0009070720.wav",
+      "install_paths": [
+        "reference_audio/mengyan_raw_6min.wav_0008983040_0009070720.wav",
+        "dataset/mengyan/wavs/mengyan_raw_6min.wav_0008983040_0009070720.wav"
+      ],
+      "size": 175404,
+      "sha256": "32a8fa23c9358b7a8edf2d66a7fbd8d65fb7b89fb715dda8ca127f4234e4b0d2"
+    }
+  ]
+}

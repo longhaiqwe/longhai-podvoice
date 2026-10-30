@@ -1,0 +1,181 @@
+{
+  "date": "2026-10-30",
+  "source": "../GPT-SoVITS",
+  "files": [
+    {
+      "path": "GPT_weights_v2/liufei-e10.ckpt",
+      "size": 155309235,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/liufei-e15.ckpt",
+      "size": 155309536,
+      "selected": true
+    },
+    {
+      "path": "GPT_weights_v2/liufei-e5.ckpt",
+      "size": 155309235,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/liufei_clean_20260930-e1.ckpt",
+      "size": 155309299,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/liufei_clean_20260930-e2.ckpt",
+      "size": 155309299,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/liufei_clean_20260930-e3.ckpt",
+      "size": 155309299,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/liufei_clean_20260930-e4.ckpt",
+      "size": 155309299,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/liufei_clean_20260930-e5.ckpt",
+      "size": 155309299,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/liufei_v2-e5.ckpt",
+      "size": 155309235,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan-e10.ckpt",
+      "size": 155309235,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan-e15.ckpt",
+      "size": 155309235,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan-e5.ckpt",
+      "size": 155309536,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_clean_20260930-e1.ckpt",
+      "size": 155309299,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_clean_20260930-e2.ckpt",
+      "size": 155309600,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_clean_20260930-e3.ckpt",
+      "size": 155309299,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_clean_20260930-e4.ckpt",
+      "size": 155309299,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_clean_20260930-e5.ckpt",
+      "size": 155309299,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_v2-e10.ckpt",
+      "size": 155309536,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_v2-e15.ckpt",
+      "size": 155309235,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_v2-e20.ckpt",
+      "size": 155309536,
+      "selected": false
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_v2-e25.ckpt",
+      "size": 155308934,
+      "selected": true
+    },
+    {
+      "path": "GPT_weights_v2/mengyan_v2-e5.ckpt",
+      "size": 155309235,
+      "selected": false
+    },
+    {
+      "path": "SoVITS_weights_v2/liufei_clean_20260930_e1_s80.pth",
+      "size": 84997916,
+      "selected": false
+    },
+    {
+      "path": "SoVITS_weights_v2/liufei_clean_20260930_e2_s160.pth",
+      "size": 84999274,
+      "selected": true
+    },
+    {
+      "path": "SoVITS_weights_v2/mengyan_clean_20260930_e1_s83.pth",
+      "size": 84999274,
+      "selected": false
+    },
+    {
+      "path": "SoVITS_weights_v2/mengyan_clean_20260930_e2_s166.pth",
+      "size": 84999274,
+      "selected": true
+    },
+    {
+      "path": "reference_audio/liufei_01.json",
+      "size": 381,
+      "selected": false
+    },
+    {
+      "path": "reference_audio/liufei_01.wav",
+      "size": 484050,
+      "selected": false
+    },
+    {
+      "path": "reference_audio/liufei_02_chat.json",
+      "size": 188,
+      "selected": false
+    },
+    {
+      "path": "reference_audio/liufei_02_chat.wav",
+      "size": 339410,
+      "selected": true
+    },
+    {
+      "path": "reference_audio/mengyan_01_intro.json",
+      "size": 324,
+      "selected": false
+    },
+    {
+      "path": "reference_audio/mengyan_01_intro.wav",
+      "size": 396850,
+      "selected": false
+    },
+    {
+      "path": "reference_audio/mengyan_02_chat.json",
+      "size": 443,
+      "selected": false
+    },
+    {
+      "path": "reference_audio/mengyan_02_chat.wav",
+      "size": 385964,
+      "selected": true
+    },
+    {
+      "path": "reference_audio/mengyan_03_philosophy.wav",
+      "size": 586924,
+      "selected": true
+    }
+  ]
+}

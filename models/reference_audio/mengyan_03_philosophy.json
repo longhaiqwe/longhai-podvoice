@@ -1,0 +1,13 @@
+{
+  "speaker": "mengyan",
+  "name": "孟岩",
+  "audio_file": "reference_audio/mengyan_03_philosophy.wav",
+  "role": "primary",
+  "prompt_text": "像是在一个巨大的房间里面进行搜索。那终其一生，我们可能只能了解这个巨大房间的非常非常有限的一个角落。",
+  "prompt_language": "zh",
+  "sample_rate": 32000,
+  "channels": 1,
+  "duration_seconds": 9.17,
+  "annotation_source": "main.ts:getGptSoVitsConfig",
+  "annotation_note": "沿用现有提示文本或训练清单；本次未重新人工听音校对。辅助参考在当前 API 中不使用此文本。"
+}
